@@ -1,13 +1,16 @@
-import { StyleSheet, View, Text, Pressable } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ThemedView } from '@/components/themed-view';
+import { LocationButton } from '@/components/location-button';
+import { useCities } from '@/hooks/use-cities';
 import { BrandColors, Typography, Spacing } from '@/constants/theme';
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { cities, loading, error } = useCities();
 
-  const handleExplorePress = () => {
-    router.push('/explore');
+  const handleLocationPress = (cityId: number) => {
+    router.push(`/explore?city=${cityId}`);
   };
 
   return (
@@ -21,24 +24,38 @@ export default function HomeScreen() {
         </Text>
       </View>
 
-      <View style={styles.contentSection}>
-        <Text style={styles.sectionTitle}>Welcome</Text>
+      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentSection}>
+        <Text style={styles.sectionTitle}>Explore Locations</Text>
         <Text style={styles.bodyText}>
-          Discover our curated collection of exclusive rental properties.
-          Each residence is handpicked to deliver an unparalleled experience
-          of elegance and comfort.
+          Discover our curated collection of exclusive rental properties
+          across the world's most prestigious destinations.
         </Text>
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.button,
-            pressed && styles.buttonPressed
-          ]}
-          onPress={handleExplorePress}
-        >
-          <Text style={styles.buttonText}>Explore Properties</Text>
-        </Pressable>
-      </View>
+        {loading && (
+          <View style={styles.loadingContainer}>
+            <ActivityIndicator size="large" color={BrandColors.secondary} />
+            <Text style={styles.loadingText}>Loading locations...</Text>
+          </View>
+        )}
+
+        {error && (
+          <View style={styles.errorContainer}>
+            <Text style={styles.errorText}>Failed to load locations</Text>
+          </View>
+        )}
+
+        {!loading && !error && cities.length > 0 && (
+          <View style={styles.locationsGrid}>
+            {cities.map((city) => (
+              <LocationButton
+                key={city.id}
+                city={city}
+                onPress={handleLocationPress}
+              />
+            ))}
+          </View>
+        )}
+      </ScrollView>
     </ThemedView>
   );
 }
@@ -82,16 +99,18 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     letterSpacing: 1,
   },
-  contentSection: {
+  scrollView: {
     flex: 1,
+  },
+  contentSection: {
     padding: Spacing.xl,
-    alignItems: 'center',
   },
   sectionTitle: {
     fontFamily: 'CormorantGaramond_600SemiBold',
     fontSize: Typography.h2.fontSize,
     color: BrandColors.primary,
     marginBottom: Spacing.md,
+    textAlign: 'center',
   },
   bodyText: {
     fontFamily: 'CormorantGaramond_400Regular',
@@ -101,20 +120,26 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     marginBottom: Spacing.xl,
   },
-  button: {
-    backgroundColor: BrandColors.secondary,
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 10,
+  loadingContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
   },
-  buttonPressed: {
-    backgroundColor: BrandColors.primary,
+  loadingText: {
+    fontFamily: 'CormorantGaramond_400Regular',
+    fontSize: 16,
+    color: BrandColors.gray.medium,
+    marginTop: Spacing.md,
   },
-  buttonText: {
-    fontFamily: 'CormorantGaramond_600SemiBold',
-    fontSize: Typography.button.fontSize,
-    color: BrandColors.white,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+  errorContainer: {
+    alignItems: 'center',
+    paddingVertical: Spacing.xxl,
+  },
+  errorText: {
+    fontFamily: 'CormorantGaramond_400Regular',
+    fontSize: 16,
+    color: BrandColors.gray.medium,
+  },
+  locationsGrid: {
+    width: '100%',
   },
 });
