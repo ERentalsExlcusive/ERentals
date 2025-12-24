@@ -20,10 +20,6 @@ import { BrandColors } from '@/constants/theme';
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
 
-export const unstable_settings = {
-  anchor: '(tabs)',
-};
-
 export default function RootLayout() {
   const colorScheme = useColorScheme();
 
@@ -70,7 +66,16 @@ export default function RootLayout() {
   return (
     <ThemeProvider value={colorScheme === 'dark' ? DarkBrandTheme : LightTheme}>
       <Stack>
+        {/* Home page - no header (has hero) */}
+        <Stack.Screen name="index" options={{ headerShown: false }} />
+
+        {/* Results page - will add custom header in Phase 2 */}
+        <Stack.Screen name="results" options={{ headerShown: false }} />
+
+        {/* Keep tabs temporarily for testing */}
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+
+        {/* Modal */}
         <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
       </Stack>
       <StatusBar style="auto" />
