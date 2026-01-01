@@ -1,8 +1,9 @@
 import { View, Text, StyleSheet, Pressable, TextInput, Platform, FlatList } from 'react-native';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { BrandColors, Spacing } from '@/constants/theme';
 import { useLocations } from '@/hooks/use-locations';
+import { useResponsive } from '@/hooks/use-responsive';
 import { DatePicker } from './date-picker';
 
 interface SearchBarProps {
@@ -20,6 +21,7 @@ export interface SearchParams {
 
 export function SearchBar({ onSearch }: SearchBarProps) {
   const { locations, loading } = useLocations();
+  const { isMobile } = useResponsive();
   const [destination, setDestination] = useState('');
   const [checkIn, setCheckIn] = useState<Date | null>(null);
   const [checkOut, setCheckOut] = useState<Date | null>(null);
@@ -32,6 +34,32 @@ export function SearchBar({ onSearch }: SearchBarProps) {
     name: string;
     type: 'city' | 'country';
   } | null>(null);
+
+  // Close all dropdowns
+  const closeAllDropdowns = () => {
+    setShowDestinationDropdown(false);
+    setShowDatePicker(false);
+    setShowGuestPicker(false);
+  };
+
+  // Handle clicks outside the search bar
+  useEffect(() => {
+    if (Platform.OS === 'web') {
+      const handleClickOutside = (event: MouseEvent) => {
+        const target = event.target as HTMLElement;
+        const container = document.getElementById('search-bar-container');
+        // Check if click is outside search bar container
+        if (container && !container.contains(target)) {
+          closeAllDropdowns();
+        }
+      };
+
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, []);
 
   // Top destination suggestions (shown when input is focused but empty)
   const topDestinations = [
@@ -59,7 +87,7 @@ export function SearchBar({ onSearch }: SearchBarProps) {
     setCheckOut(end);
     // Close picker if both dates are selected
     if (start && end) {
-      setShowDatePicker(false);
+      closeAllDropdowns();
     }
   };
 
@@ -72,9 +100,7 @@ export function SearchBar({ onSearch }: SearchBarProps) {
       checkOut,
       guests,
     });
-    setShowDestinationDropdown(false);
-    setShowGuestPicker(false);
-    setShowDatePicker(false);
+    closeAllDropdowns();
   };
 
   const handleReset = () => {
@@ -83,9 +109,7 @@ export function SearchBar({ onSearch }: SearchBarProps) {
     setCheckIn(null);
     setCheckOut(null);
     setGuests(2);
-    setShowDestinationDropdown(false);
-    setShowGuestPicker(false);
-    setShowDatePicker(false);
+    closeAllDropdowns();
     // Reset search without scrolling
     if (onSearch) {
       onSearch({
@@ -100,7 +124,7 @@ export function SearchBar({ onSearch }: SearchBarProps) {
   };
 
   const formatDate = (date: Date | null): string => {
-    if (!date) return 'Add dates';
+    if (!date) return isMobile ? 'Dates' : 'Add dates';
     const month = date.toLocaleDateString('en-US', { month: 'short' });
     const day = date.getDate();
     return `${month} ${day}`;
@@ -115,88 +139,111 @@ export function SearchBar({ onSearch }: SearchBarProps) {
       name: location.name,
       type: location.type,
     });
-    setShowDestinationDropdown(false);
+    closeAllDropdowns();
+  };
+
+  const openDestinationDropdown = () => {
+    closeAllDropdowns();
+    setShowDestinationDropdown(true);
+  };
+
+  const openDatePicker = () => {
+    closeAllDropdowns();
+    setShowDatePicker(true);
+  };
+
+  const openGuestPicker = () => {
+    closeAllDropdowns();
+    setShowGuestPicker(true);
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.searchBox}>
+    <View style={styles.container} nativeID="search-bar-container">
+      <View style={[styles.searchBox, isMobile && styles.searchBoxMobile]}>
         {/* Destination */}
-        <View style={styles.field}>
+        <View style={[styles.field, isMobile && [styles.fieldMobile, styles.fieldMobileWhere]]}>
           <Text style={styles.label}>Where</Text>
           <TextInput
-            style={styles.input}
-            placeholder="Search destinations"
+            style={[styles.input, isMobile && styles.inputMobile]}
+            placeholder={isMobile ? "Search" : "Search destinations"}
             placeholderTextColor={BrandColors.gray.medium}
             value={destination}
             onChangeText={(text) => {
               setDestination(text);
               setSelectedDestination(null);
-              setShowDestinationDropdown(true);
+              openDestinationDropdown();
             }}
-            onFocus={() => setShowDestinationDropdown(true)}
+            onFocus={openDestinationDropdown}
           />
         </View>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, isMobile && styles.dividerMobile]} />
 
         {/* Check In */}
         <Pressable
-          style={styles.field}
-          onPress={() => {
-            setShowDatePicker(true);
-            setShowDestinationDropdown(false);
-            setShowGuestPicker(false);
-          }}
+          style={[styles.field, isMobile && [styles.fieldMobile, styles.fieldMobileDate]]}
+          onPress={openDatePicker}
         >
-          <Text style={styles.label}>Check in</Text>
-          <Text style={[styles.input, !checkIn && styles.inputPlaceholder]}>
+          <Text style={[styles.label, isMobile && styles.labelMobile]}>Check in</Text>
+          <Text
+            style={[styles.input, !checkIn && styles.inputPlaceholder, isMobile && styles.inputMobile]}
+            numberOfLines={1}
+            ellipsizeMode="clip"
+          >
             {formatDate(checkIn)}
           </Text>
         </Pressable>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, isMobile && styles.dividerMobile]} />
 
         {/* Check Out */}
         <Pressable
-          style={[styles.field, checkIn && !checkOut && styles.fieldHighlight]}
-          onPress={() => {
-            setShowDatePicker(true);
-            setShowDestinationDropdown(false);
-            setShowGuestPicker(false);
-          }}
+          style={[styles.field, checkIn && !checkOut && styles.fieldHighlight, isMobile && [styles.fieldMobile, styles.fieldMobileDate]]}
+          onPress={openDatePicker}
         >
-          <Text style={[styles.label, checkIn && !checkOut && styles.labelHighlight]}>
+          <Text style={[styles.label, checkIn && !checkOut && styles.labelHighlight, isMobile && styles.labelMobile]} numberOfLines={1}>
             Check out {checkIn && !checkOut && '→'}
           </Text>
-          <Text style={[styles.input, !checkOut && styles.inputPlaceholder]}>
+          <Text
+            style={[styles.input, !checkOut && styles.inputPlaceholder, isMobile && styles.inputMobile]}
+            numberOfLines={1}
+            ellipsizeMode="clip"
+          >
             {formatDate(checkOut)}
           </Text>
         </Pressable>
 
-        <View style={styles.divider} />
+        <View style={[styles.divider, isMobile && styles.dividerMobile]} />
 
         {/* Guests */}
         <Pressable
-          style={styles.field}
-          onPress={() => setShowGuestPicker(!showGuestPicker)}
+          style={[styles.field, isMobile && [styles.fieldMobile, styles.fieldMobileGuest]]}
+          onPress={openGuestPicker}
         >
           <Text style={styles.label}>Guests</Text>
-          <Text style={styles.input}>{guests} guest{guests !== 1 ? 's' : ''}</Text>
+          <Text style={[styles.input, isMobile && styles.inputMobile]} numberOfLines={1}>{guests}</Text>
         </Pressable>
 
         {/* Reset Button - Only show if filters are active */}
-        {hasActiveFilters && (
+        {hasActiveFilters && !isMobile && (
           <Pressable style={styles.resetButton} onPress={handleReset}>
             <Feather name="x" size={18} color={BrandColors.gray.dark} />
           </Pressable>
         )}
 
         {/* Search Button */}
-        <Pressable style={styles.searchButton} onPress={handleSearch}>
+        <Pressable style={[styles.searchButton, isMobile && styles.searchButtonMobile]} onPress={handleSearch}>
           <Text style={styles.searchButtonText}>Search</Text>
         </Pressable>
       </View>
+
+      {/* Mobile Reset Button */}
+      {hasActiveFilters && isMobile && (
+        <Pressable style={styles.resetButtonMobile} onPress={handleReset}>
+          <Feather name="x" size={16} color={BrandColors.white} />
+          <Text style={styles.resetButtonText}>Clear</Text>
+        </Pressable>
+      )}
 
       {/* Destination Autocomplete Dropdown */}
       {showDestinationDropdown && filteredLocations.length > 0 && (
@@ -309,8 +356,8 @@ const styles = StyleSheet.create({
     color: BrandColors.secondary,
   },
   input: {
-    fontSize: 14,
-    color: BrandColors.gray.dark,
+    fontSize: 15,
+    color: BrandColors.black,
   },
   inputPlaceholder: {
     color: BrandColors.gray.medium,
@@ -319,6 +366,12 @@ const styles = StyleSheet.create({
     width: 1,
     height: 32,
     backgroundColor: BrandColors.gray.border,
+  },
+  dividerMobile: {
+    height: 24,
+  },
+  labelMobile: {
+    fontSize: 10,
   },
   resetButton: {
     width: 36,
@@ -341,22 +394,78 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: BrandColors.white,
   },
+  // Mobile-specific styles
+  searchBoxMobile: {
+    flexDirection: 'row',
+    borderRadius: 50,
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    gap: 0,
+    alignItems: 'center',
+  },
+  fieldMobile: {
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderBottomWidth: 0,
+    justifyContent: 'center',
+  },
+  // Where field gets more space
+  fieldMobileWhere: {
+    flex: 2,
+    minWidth: 90,
+  },
+  // Date fields get moderate space
+  fieldMobileDate: {
+    flex: 1.5,
+    minWidth: 75,
+  },
+  // Guest field gets less space (just shows number)
+  fieldMobileGuest: {
+    flex: 1,
+    minWidth: 55,
+  },
+  inputMobile: {
+    fontSize: 13,
+  },
+  searchButtonMobile: {
+    marginLeft: 0,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    minWidth: 65,
+  },
+  resetButtonMobile: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: BrandColors.black,
+    paddingHorizontal: Spacing.lg,
+    paddingVertical: Spacing.sm,
+    borderRadius: 50,
+    marginTop: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  resetButtonText: {
+    color: BrandColors.white,
+    fontSize: 14,
+    fontWeight: '600',
+  },
   dropdown: {
     position: 'absolute',
     top: '100%',
-    left: 0,
-    right: 0,
+    left: Platform.OS === 'web' ? 0 : Spacing.sm,
+    right: Platform.OS === 'web' ? 0 : Spacing.sm,
     marginTop: 8,
     backgroundColor: BrandColors.white,
     borderRadius: 16,
-    padding: Spacing.xs,
+    padding: Spacing.md,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 8,
-    maxHeight: 320,
-    zIndex: 1000,
+    maxHeight: 280,
+    zIndex: 1001,
+    overflow: 'hidden',
   },
   dropdownHeader: {
     paddingHorizontal: Spacing.md,
@@ -397,15 +506,18 @@ const styles = StyleSheet.create({
   datePickerContainer: {
     position: 'absolute',
     top: '100%',
-    left: '50%',
-    transform: [{ translateX: '-50%' }],
+    left: Platform.OS === 'web' ? '50%' : Spacing.sm,
+    right: Platform.OS === 'web' ? undefined : Spacing.sm,
+    transform: Platform.OS === 'web' ? [{ translateX: '-50%' }] : undefined,
     marginTop: 8,
-    zIndex: 1000,
+    zIndex: 1002,
+    maxWidth: Platform.OS === 'web' ? 380 : undefined,
   },
   guestPicker: {
     position: 'absolute',
     top: '100%',
-    right: 0,
+    right: Platform.OS === 'web' ? 0 : Spacing.sm,
+    left: Platform.OS === 'web' ? undefined : Spacing.sm,
     marginTop: 8,
     backgroundColor: BrandColors.white,
     borderRadius: 16,
@@ -415,8 +527,9 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 20,
     elevation: 8,
-    minWidth: 300,
-    zIndex: 1000,
+    minWidth: Platform.OS === 'web' ? 300 : undefined,
+    maxWidth: Platform.OS === 'web' ? 300 : undefined,
+    zIndex: 1001,
   },
   guestRow: {
     flexDirection: 'row',

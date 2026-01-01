@@ -1,7 +1,8 @@
-import { StyleSheet, View, FlatList, Platform, Dimensions } from 'react-native';
+import { StyleSheet, View, FlatList, Platform } from 'react-native';
 import { PropertyCard } from './property-card';
 import { Rental } from '@/types/rental';
 import { Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/use-responsive';
 
 interface PropertyGridProps {
   properties: Rental[];
@@ -10,23 +11,24 @@ interface PropertyGridProps {
   ListFooterComponent?: React.ComponentType<any> | React.ReactElement | null;
 }
 
-// Determine number of columns based on screen width
-function getNumColumns() {
-  if (Platform.OS !== 'web') return 2;
-  const width = Dimensions.get('window').width;
-  if (width > 1400) return 4;
-  if (width > 1024) return 3;
-  if (width > 768) return 2;
-  return 1;
-}
-
 export function PropertyGrid({
   properties,
   onPropertyPress,
   ListHeaderComponent,
   ListFooterComponent,
 }: PropertyGridProps) {
-  const numColumns = getNumColumns();
+  const { width, isMobile } = useResponsive();
+
+  // Determine number of columns based on screen width
+  const numColumns = Platform.OS !== 'web'
+    ? 1 // Native mobile: single column
+    : isMobile
+    ? 1 // Web mobile: single column
+    : width > 1400
+    ? 4 // Large desktop: 4 columns
+    : width > 1024
+    ? 3 // Desktop: 3 columns
+    : 2; // Tablet: 2 columns
 
   return (
     <FlatList

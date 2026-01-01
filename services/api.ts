@@ -35,8 +35,15 @@ function decodeHtmlEntities(text: string): string {
  */
 function transformRental(raw: RentalAssetRaw): Rental {
   const embedded = raw._embedded;
-  const featuredMedia = embedded?.['wp:featuredmedia']?.[0];
+  const featuredMediaRaw = embedded?.['wp:featuredmedia']?.[0];
   const terms = embedded?.['wp:term'] || [];
+
+  // Check if featured media is valid (not an error response)
+  const featuredMedia = featuredMediaRaw &&
+    !('code' in featuredMediaRaw) &&
+    'source_url' in featuredMediaRaw
+    ? featuredMediaRaw
+    : null;
 
   // Find taxonomy terms from embedded data
   const findTerm = (taxonomyIndex: number): TaxonomyTerm | null => {
@@ -62,6 +69,7 @@ function transformRental(raw: RentalAssetRaw): Rental {
           sizes: {
             thumbnail: featuredMedia.media_details?.sizes?.thumbnail?.source_url,
             medium: featuredMedia.media_details?.sizes?.medium?.source_url,
+            medium_large: featuredMedia.media_details?.sizes?.medium_large?.source_url,
             large: featuredMedia.media_details?.sizes?.large?.source_url,
             full: featuredMedia.source_url,
           },
@@ -94,10 +102,13 @@ export async function getRentals(
     order = 'desc',
   } = params;
 
+  // Fetch more results than requested to account for preview filtering
+  // This ensures we have enough non-preview listings to display
+  const fetchSize = 100;
+
   const queryParams = new URLSearchParams({
     _embed: 'true',
-    page: page.toString(),
-    per_page: perPage.toString(),
+    per_page: fetchSize.toString(),
     orderby: orderBy,
     order: order,
   });
@@ -115,16 +126,29 @@ export async function getRentals(
     throw new Error(`API error: ${response.status} ${response.statusText}`);
   }
 
-  const total = parseInt(response.headers.get('X-WP-Total') || '0', 10);
-  const totalPages = parseInt(response.headers.get('X-WP-TotalPages') || '0', 10);
-
   const rawData: RentalAssetRaw[] = await response.json();
-  const data = rawData.map(transformRental);
+
+  // Filter out all preview versions to avoid duplicates
+  const allNonPreview = rawData.filter(item => {
+    const slug = item.slug.toLowerCase();
+    return !slug.includes('preview');
+  });
+
+  // Calculate actual totals based on non-preview items
+  const actualTotal = allNonPreview.length;
+  const actualTotalPages = Math.ceil(actualTotal / perPage);
+
+  // Paginate the filtered results
+  const startIndex = (page - 1) * perPage;
+  const endIndex = startIndex + perPage;
+  const paginatedData = allNonPreview.slice(startIndex, endIndex);
+
+  const data = paginatedData.map(transformRental);
 
   return {
     data,
-    total,
-    totalPages,
+    total: actualTotal,
+    totalPages: actualTotalPages,
     page,
     perPage,
   };
@@ -209,4 +233,48 @@ export async function searchRentals(
   params: Omit<RentalListParams, 'search'> = {}
 ): Promise<PaginatedResponse<Rental>> {
   return getRentals({ ...params, search: query });
+}
+
+/**
+ * Gallery image type
+ */
+export interface GalleryImage {
+  id: number;
+  url: string;
+  alt: string;
+  width: number;
+  height: number;
+  sizes: {
+    thumbnail?: string;
+    medium?: string;
+    large?: string;
+    full: string;
+  };
+}
+
+/**
+ * Fetch all gallery images for a rental property
+ */
+export async function getRentalGallery(rentalId: number): Promise<GalleryImage[]> {
+  const response = await fetch(`${API_BASE}/media?parent=${rentalId}&per_page=100`);
+
+  if (!response.ok) {
+    throw new Error(`API error: ${response.status} ${response.statusText}`);
+  }
+
+  const rawImages: any[] = await response.json();
+
+  return rawImages.map(img => ({
+    id: img.id,
+    url: img.source_url,
+    alt: img.alt_text || '',
+    width: img.media_details?.width || 0,
+    height: img.media_details?.height || 0,
+    sizes: {
+      thumbnail: img.media_details?.sizes?.thumbnail?.source_url,
+      medium: img.media_details?.sizes?.medium?.source_url,
+      large: img.media_details?.sizes?.large?.source_url,
+      full: img.source_url,
+    },
+  }));
 }

@@ -51,7 +51,7 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
       <View style={styles.imageContainer}>
         {rental.featuredImage ? (
           <Image
-            source={{ uri: rental.featuredImage.sizes.large || rental.featuredImage.url }}
+            source={{ uri: rental.featuredImage.sizes.medium_large || rental.featuredImage.sizes.large || rental.featuredImage.url }}
             style={[
               styles.image,
               isHovered && Platform.OS === 'web' && styles.imageHovered,
@@ -103,15 +103,15 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
                 <Text style={styles.detailText}>{propertyData.guestMax} guests</Text>
               </View>
             )}
-            {propertyData.bedrooms && (
+            {propertyData.bedrooms && propertyData.category !== 'transport' && (
               <View style={styles.detailItem}>
                 <Feather name="home" size={14} color={BrandColors.gray.medium} />
                 <Text style={styles.detailText}>
-                  {propertyData.bedrooms} {propertyData.bedrooms === 1 ? 'bed' : 'beds'}
+                  {propertyData.bedrooms} {propertyData.category === 'yacht' ? (propertyData.bedrooms === 1 ? 'cabin' : 'cabins') : (propertyData.bedrooms === 1 ? 'bed' : 'beds')}
                 </Text>
               </View>
             )}
-            {propertyData.bathrooms && (
+            {propertyData.bathrooms && propertyData.category !== 'transport' && (
               <View style={styles.detailItem}>
                 <Feather name="droplet" size={14} color={BrandColors.gray.medium} />
                 <Text style={styles.detailText}>
@@ -122,10 +122,10 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
           </View>
         )}
 
-        {/* Amenities */}
-        {propertyData && propertyData.amenities && propertyData.amenities.length > 0 && (
+        {/* Select Amenities for Yachts/Transport */}
+        {propertyData && (propertyData.category === 'yacht' || propertyData.category === 'transport') && propertyData.amenities && propertyData.amenities.length > 0 && (
           <View style={styles.amenitiesContainer}>
-            <AmenityList amenities={propertyData.amenities} maxDisplay={4} />
+            <AmenityList amenities={propertyData.amenities} maxDisplay={3} />
           </View>
         )}
 

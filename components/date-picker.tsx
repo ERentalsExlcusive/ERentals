@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Pressable, ScrollView, Platform } from 'react-native';
 import { useState, useMemo } from 'react';
 import { BrandColors, Spacing } from '@/constants/theme';
+import { useResponsive } from '@/hooks/use-responsive';
 
 interface DatePickerProps {
   startDate?: Date;
@@ -17,13 +18,17 @@ interface DayCell {
 }
 
 export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DatePickerProps) {
+  const { isMobile } = useResponsive();
   const [currentMonth, setCurrentMonth] = useState(new Date());
   const [selectingStart, setSelectingStart] = useState(true);
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
 
-  const dayNames = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+  // Use single letters on mobile, abbreviated on desktop
+  const dayNames = isMobile
+    ? ['S', 'M', 'T', 'W', 'T', 'F', 'S']
+    : ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
   // Generate calendar days for current month
   const calendarDays = useMemo(() => {
@@ -128,14 +133,14 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
   };
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, isMobile && styles.containerMobile]}>
       {/* Month Navigation */}
       <View style={styles.header}>
         <Pressable onPress={previousMonth} style={styles.navButton}>
           <Text style={styles.navText}>‹</Text>
         </Pressable>
 
-        <Text style={styles.monthText}>
+        <Text style={[styles.monthText, isMobile && styles.monthTextMobile]}>
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </Text>
 
@@ -146,9 +151,9 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
 
       {/* Day Names */}
       <View style={styles.dayNamesRow}>
-        {dayNames.map((day) => (
-          <View key={day} style={styles.dayNameCell}>
-            <Text style={styles.dayNameText}>{day}</Text>
+        {dayNames.map((day, index) => (
+          <View key={`${day}-${index}`} style={styles.dayNameCell}>
+            <Text style={[styles.dayNameText, isMobile && styles.dayNameTextMobile]}>{day}</Text>
           </View>
         ))}
       </View>
@@ -177,6 +182,7 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
               <Text
                 style={[
                   styles.dayText,
+                  isMobile && styles.dayTextMobile,
                   !dayCell.isCurrentMonth && styles.dayTextOtherMonth,
                   (selected === 'start' || selected === 'end') && styles.dayTextSelected,
                   dayCell.isToday && !selected && styles.dayTextToday,
@@ -192,7 +198,11 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
 
       {/* Legend */}
       <View style={styles.legend}>
-        <Text style={[styles.legendText, startDate && !endDate && styles.legendTextHighlight]}>
+        <Text style={[
+          styles.legendText,
+          isMobile && styles.legendTextMobile,
+          startDate && !endDate && styles.legendTextHighlight
+        ]}>
           {!startDate && 'Select check-in date'}
           {startDate && !endDate && '✓ Check-in selected — Now select check-out date'}
           {startDate && endDate && `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`}
@@ -213,6 +223,10 @@ const styles = StyleSheet.create({
     shadowRadius: 20,
     elevation: 8,
     maxWidth: 380,
+  },
+  containerMobile: {
+    padding: Spacing.md, // Reduced from lg (24px to 16px)
+    borderRadius: 12,
   },
   header: {
     flexDirection: 'row',
@@ -235,6 +249,9 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: BrandColors.black,
   },
+  monthTextMobile: {
+    fontSize: 14,
+  },
   dayNamesRow: {
     flexDirection: 'row',
     marginBottom: Spacing.xs,
@@ -249,6 +266,10 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: BrandColors.gray.medium,
     textTransform: 'uppercase',
+  },
+  dayNameTextMobile: {
+    fontSize: 10,
+    letterSpacing: 0,
   },
   calendarGrid: {
     flexDirection: 'row',
@@ -292,6 +313,9 @@ const styles = StyleSheet.create({
     color: BrandColors.black,
     fontWeight: '500',
   },
+  dayTextMobile: {
+    fontSize: 13,
+  },
   dayTextOtherMonth: {
     color: BrandColors.gray.medium,
   },
@@ -317,6 +341,9 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: BrandColors.gray.dark,
     fontWeight: '500',
+  },
+  legendTextMobile: {
+    fontSize: 11,
   },
   legendTextHighlight: {
     color: BrandColors.black,

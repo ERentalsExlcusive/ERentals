@@ -1,13 +1,15 @@
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
-import { useState, useRef } from 'react';
-import { useRouter } from 'expo-router';
+import { useState, useRef, useMemo, useEffect } from 'react';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Header } from '@/components/header';
 import { Hero } from '@/components/hero';
 import { SearchParams } from '@/components/search-bar';
 import { CategoryTabs } from '@/components/category-tabs';
 import { PropertyGrid } from '@/components/property-grid';
 import { BrandButton } from '@/components/brand-button';
+import { PropertyCardSkeleton } from '@/components/skeleton-loader';
 import { useRentals } from '@/hooks/use-rentals';
+import { getPropertyDataBySlug } from '@/data/property-data';
 import { BrandColors, Spacing } from '@/constants/theme';
 import { Rental } from '@/types/rental';
 
@@ -22,9 +24,34 @@ const CATEGORIES = [
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { category } = useLocalSearchParams<{ category?: string }>();
   const scrollViewRef = useRef<ScrollView>(null);
   const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
   const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
+
+  // Handle category from URL parameter
+  useEffect(() => {
+    if (category) {
+      const categoryMap: Record<string, number> = {
+        villa: 44,
+        yacht: 45,
+        transport: 84,
+      };
+      const categoryId = categoryMap[category];
+      if (categoryId) {
+        setSelectedCategory(categoryId);
+        // Scroll to collection section
+        if (scrollViewRef.current) {
+          setTimeout(() => {
+            scrollViewRef.current?.scrollTo({
+              y: typeof window !== 'undefined' ? window.innerHeight : 800,
+              animated: true
+            });
+          }, 100);
+        }
+      }
+    }
+  }, [category]);
 
   // Build API params from search and category
   const apiParams = {
@@ -44,6 +71,21 @@ export default function HomeScreen() {
   };
 
   const { rentals, loading, error, loadMore, hasMore, total } = useRentals(apiParams);
+
+  // Filter rentals by guest capacity on client side
+  const filteredRentals = useMemo(() => {
+    if (!searchParams?.guests || searchParams.guests <= 1) {
+      return rentals;
+    }
+
+    return rentals.filter(rental => {
+      const propertyData = getPropertyDataBySlug(rental.slug);
+      if (!propertyData || !propertyData.guestMax) {
+        return true; // Include if no data (don't filter out)
+      }
+      return propertyData.guestMax >= searchParams.guests;
+    });
+  }, [rentals, searchParams?.guests]);
 
   const handlePropertyPress = (rental: Rental) => {
     router.push(`/property/${rental.id}`);
@@ -78,10 +120,20 @@ export default function HomeScreen() {
     }
   };
 
+  const handleHomePress = () => {
+    // Scroll to top when Home is clicked
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: 0, animated: true });
+    }
+    // Reset category to 'all' and clear search
+    setSelectedCategory('all');
+    setSearchParams(null);
+  };
+
   return (
     <View style={styles.container}>
       {/* Floating Header */}
-      <Header onCategorySelect={handleHeaderCategorySelect} />
+      <Header onCategorySelect={handleHeaderCategorySelect} onHomePress={handleHomePress} />
 
       <ScrollView
         ref={scrollViewRef}
@@ -100,7 +152,7 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Explore Our Collection</Text>
             <Text style={styles.sectionSubtitle}>
-              {total || rentals.length} {total === 1 ? 'listing' : 'listings'}
+              {total} {total === 1 ? 'listing' : 'listings'}
             </Text>
           </View>
 
@@ -115,20 +167,23 @@ export default function HomeScreen() {
         </View>
 
         {/* Properties Grid */}
-        {loading && rentals.length === 0 ? (
-          <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={BrandColors.black} />
-            <Text style={styles.loadingText}>Loading properties...</Text>
+        {loading && filteredRentals.length === 0 ? (
+          <View style={styles.gridContainer}>
+            <View style={styles.skeletonGrid}>
+              {[...Array(6)].map((_, i) => (
+                <PropertyCardSkeleton key={i} />
+              ))}
+            </View>
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
             <Text style={styles.errorText}>Unable to load properties</Text>
             <Text style={styles.errorSubtext}>Please try again later</Text>
           </View>
-        ) : rentals.length > 0 ? (
+        ) : filteredRentals.length > 0 ? (
           <View style={styles.gridContainer}>
             <PropertyGrid
-              properties={rentals}
+              properties={filteredRentals}
               onPropertyPress={handlePropertyPress}
               ListFooterComponent={
                 hasMore && !loading ? (
@@ -139,7 +194,7 @@ export default function HomeScreen() {
                       onPress={loadMore}
                     />
                   </View>
-                ) : loading && rentals.length > 0 ? (
+                ) : loading && filteredRentals.length > 0 ? (
                   <View style={styles.loadingMore}>
                     <ActivityIndicator size="small" color={BrandColors.gray.medium} />
                   </View>
@@ -161,14 +216,19 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: BrandColors.white,
+    width: '100%',
+    maxWidth: '100vw',
+    overflow: 'hidden',
   },
   scrollView: {
     flex: 1,
     marginTop: 0,
+    width: '100%',
   },
   scrollContent: {
     flexGrow: 1,
     paddingTop: 0,
+    width: '100%',
   },
   section: {
     paddingTop: Spacing.xxl * 2,
@@ -200,6 +260,13 @@ const styles = StyleSheet.create({
   },
   gridContainer: {
     flex: 1,
+  },
+  skeletonGrid: {
+    paddingHorizontal: Spacing.xxl,
+    paddingTop: Spacing.md,
+    maxWidth: 1400,
+    marginHorizontal: 'auto',
+    width: '100%',
   },
   loadingContainer: {
     paddingVertical: Spacing.xxl * 3,
