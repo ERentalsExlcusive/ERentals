@@ -1,62 +1,159 @@
 import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { useState, useRef } from 'react';
 import { useRouter } from 'expo-router';
-import { ThemedView } from '@/components/themed-view';
-import { LocationButton } from '@/components/location-button';
-import { useCities } from '@/hooks/use-cities';
-import { BrandColors, Typography, Spacing } from '@/constants/theme';
+import { Header } from '@/components/header';
+import { Hero } from '@/components/hero';
+import { SearchParams } from '@/components/search-bar';
+import { CategoryTabs } from '@/components/category-tabs';
+import { PropertyGrid } from '@/components/property-grid';
+import { BrandButton } from '@/components/brand-button';
+import { useRentals } from '@/hooks/use-rentals';
+import { BrandColors, Spacing } from '@/constants/theme';
+import { Rental } from '@/types/rental';
+
+// Main rental categories from WordPress
+// Villa ID: 44, Yacht ID: 45, Transport ID: 84, Property ID: 99, Hotel ID: 102
+const CATEGORIES = [
+  { id: 'all' as const, name: 'All', slug: 'all' },
+  { id: 44, name: 'Villas', slug: 'villa' },
+  { id: 45, name: 'Yachts', slug: 'yacht' },
+  { id: 84, name: 'Transport', slug: 'transport' },
+];
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { cities, loading, error } = useCities();
+  const scrollViewRef = useRef<ScrollView>(null);
+  const [selectedCategory, setSelectedCategory] = useState<number | 'all'>('all');
+  const [searchParams, setSearchParams] = useState<SearchParams | null>(null);
 
-  const handleLocationPress = (cityId: number) => {
-    router.push(`/explore?city=${cityId}`);
+  // Build API params from search and category
+  const apiParams = {
+    category: selectedCategory === 'all' ? undefined : selectedCategory,
+    perPage: 12,
+    // Add location filters from search
+    ...(searchParams?.destinationType === 'city' && searchParams.destinationId
+      ? { city: searchParams.destinationId }
+      : {}),
+    ...(searchParams?.destinationType === 'country' && searchParams.destinationId
+      ? { country: searchParams.destinationId }
+      : {}),
+    // Add general search if destination name is provided without ID
+    ...(searchParams?.destination && !searchParams.destinationId
+      ? { search: searchParams.destination }
+      : {}),
+  };
+
+  const { rentals, loading, error, loadMore, hasMore, total } = useRentals(apiParams);
+
+  const handlePropertyPress = (rental: Rental) => {
+    router.push(`/property/${rental.id}`);
+  };
+
+  const handleSearch = (params: SearchParams) => {
+    setSearchParams(params);
+    // Only scroll if there's an actual search (not a reset)
+    const hasSearchParams = params.destination || params.checkIn || params.checkOut || (params.guests && params.guests !== 2);
+    if (hasSearchParams && scrollViewRef.current) {
+      // Scroll to approximately where the section starts (100vh for hero)
+      scrollViewRef.current.scrollTo({ y: typeof window !== 'undefined' ? window.innerHeight : 800, animated: true });
+    }
+    console.log('Searching with params:', params);
+  };
+
+  const handleCategorySelect = (categoryId: number | 'all') => {
+    setSelectedCategory(categoryId);
+  };
+
+  const handleHeaderCategorySelect = (category: 'villa' | 'yacht' | 'transport') => {
+    // Map category names to IDs
+    const categoryMap = {
+      villa: 44,
+      yacht: 45,
+      transport: 84,
+    };
+    setSelectedCategory(categoryMap[category]);
+    // Scroll to collection section
+    if (scrollViewRef.current) {
+      scrollViewRef.current.scrollTo({ y: typeof window !== 'undefined' ? window.innerHeight : 800, animated: true });
+    }
   };
 
   return (
-    <ThemedView style={styles.container}>
-      <View style={styles.heroSection}>
-        <Text style={styles.brandName}>ERentals</Text>
-        <Text style={styles.brandTagline}>Exclusive</Text>
-        <View style={styles.divider} />
-        <Text style={styles.heroSubtitle}>
-          Luxury Properties for Discerning Guests
-        </Text>
-      </View>
+    <View style={styles.container}>
+      {/* Floating Header */}
+      <Header onCategorySelect={handleHeaderCategorySelect} />
 
-      <ScrollView style={styles.scrollView} contentContainerStyle={styles.contentSection}>
-        <Text style={styles.sectionTitle}>Explore Locations</Text>
-        <Text style={styles.bodyText}>
-          Discover our curated collection of exclusive rental properties
-          across the world's most prestigious destinations.
-        </Text>
+      <ScrollView
+        ref={scrollViewRef}
+        style={styles.scrollView}
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Full-Screen Hero - ALWAYS VISIBLE */}
+        <Hero
+          imageUrl="https://erentalsexclusive.com/wp-content/uploads/2025/12/9-17.webp"
+          onSearch={handleSearch}
+        />
 
-        {loading && (
+        {/* Collections/Categories Section */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Explore Our Collection</Text>
+            <Text style={styles.sectionSubtitle}>
+              {total || rentals.length} {total === 1 ? 'listing' : 'listings'}
+            </Text>
+          </View>
+
+          {/* Category Tabs - Centered */}
+          <View style={styles.categoryTabsContainer}>
+            <CategoryTabs
+              categories={CATEGORIES}
+              selectedId={selectedCategory}
+              onSelect={handleCategorySelect}
+            />
+          </View>
+        </View>
+
+        {/* Properties Grid */}
+        {loading && rentals.length === 0 ? (
           <View style={styles.loadingContainer}>
-            <ActivityIndicator size="large" color={BrandColors.secondary} />
-            <Text style={styles.loadingText}>Loading locations...</Text>
+            <ActivityIndicator size="large" color={BrandColors.black} />
+            <Text style={styles.loadingText}>Loading properties...</Text>
           </View>
-        )}
-
-        {error && (
+        ) : error ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Failed to load locations</Text>
+            <Text style={styles.errorText}>Unable to load properties</Text>
+            <Text style={styles.errorSubtext}>Please try again later</Text>
           </View>
-        )}
-
-        {!loading && !error && cities.length > 0 && (
-          <View style={styles.locationsGrid}>
-            {cities.map((city) => (
-              <LocationButton
-                key={city.id}
-                city={city}
-                onPress={handleLocationPress}
-              />
-            ))}
+        ) : rentals.length > 0 ? (
+          <View style={styles.gridContainer}>
+            <PropertyGrid
+              properties={rentals}
+              onPropertyPress={handlePropertyPress}
+              ListFooterComponent={
+                hasMore && !loading ? (
+                  <View style={styles.loadMoreContainer}>
+                    <BrandButton
+                      title="Load More Listings"
+                      variant="ghost"
+                      onPress={loadMore}
+                    />
+                  </View>
+                ) : loading && rentals.length > 0 ? (
+                  <View style={styles.loadingMore}>
+                    <ActivityIndicator size="small" color={BrandColors.gray.medium} />
+                  </View>
+                ) : null
+              }
+            />
+          </View>
+        ) : (
+          <View style={styles.emptyContainer}>
+            <Text style={styles.emptyText}>No listings found</Text>
           </View>
         )}
       </ScrollView>
-    </ThemedView>
+    </View>
   );
 }
 
@@ -65,81 +162,85 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: BrandColors.white,
   },
-  heroSection: {
-    backgroundColor: BrandColors.primary,
-    paddingVertical: Spacing.section,
-    paddingHorizontal: Spacing.lg,
+  scrollView: {
+    flex: 1,
+    marginTop: 0,
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingTop: 0,
+  },
+  section: {
+    paddingTop: Spacing.xxl * 2,
+    paddingBottom: Spacing.xxl,
+    backgroundColor: BrandColors.white,
+  },
+  sectionHeader: {
+    paddingHorizontal: Spacing.xxl,
+    marginBottom: Spacing.lg,
+    alignItems: 'center',
+    textAlign: 'center',
+  },
+  sectionTitle: {
+    fontSize: 32,
+    fontWeight: '700',
+    color: BrandColors.black,
+    marginBottom: Spacing.xs,
+    letterSpacing: -0.5,
+    textAlign: 'center',
+  },
+  sectionSubtitle: {
+    fontSize: 16,
+    color: BrandColors.gray.dark,
+    textAlign: 'center',
+  },
+  categoryTabsContainer: {
     alignItems: 'center',
     justifyContent: 'center',
   },
-  brandName: {
-    fontFamily: 'CormorantGaramond_700Bold',
-    fontSize: 56,
-    color: BrandColors.white,
-    letterSpacing: 2,
-  },
-  brandTagline: {
-    fontFamily: 'DMSerifDisplay_400Regular',
-    fontSize: 28,
-    color: BrandColors.secondary,
-    letterSpacing: 8,
-    textTransform: 'uppercase',
-    marginTop: -8,
-  },
-  divider: {
-    width: 60,
-    height: 2,
-    backgroundColor: BrandColors.secondary,
-    marginVertical: Spacing.lg,
-  },
-  heroSubtitle: {
-    fontFamily: 'CormorantGaramond_400Regular',
-    fontSize: 18,
-    color: BrandColors.gray.medium,
-    textAlign: 'center',
-    letterSpacing: 1,
-  },
-  scrollView: {
+  gridContainer: {
     flex: 1,
   },
-  contentSection: {
-    padding: Spacing.xl,
-  },
-  sectionTitle: {
-    fontFamily: 'CormorantGaramond_600SemiBold',
-    fontSize: Typography.h2.fontSize,
-    color: BrandColors.primary,
-    marginBottom: Spacing.md,
-    textAlign: 'center',
-  },
-  bodyText: {
-    fontFamily: 'CormorantGaramond_400Regular',
-    fontSize: Typography.body.fontSize,
-    lineHeight: Typography.body.lineHeight,
-    color: BrandColors.gray.dark,
-    textAlign: 'center',
-    marginBottom: Spacing.xl,
-  },
   loadingContainer: {
+    paddingVertical: Spacing.xxl * 3,
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
+    justifyContent: 'center',
   },
   loadingText: {
-    fontFamily: 'CormorantGaramond_400Regular',
-    fontSize: 16,
-    color: BrandColors.gray.medium,
     marginTop: Spacing.md,
+    fontSize: 15,
+    color: BrandColors.gray.medium,
   },
   errorContainer: {
+    paddingVertical: Spacing.xxl * 3,
     alignItems: 'center',
-    paddingVertical: Spacing.xxl,
+    justifyContent: 'center',
   },
   errorText: {
-    fontFamily: 'CormorantGaramond_400Regular',
     fontSize: 16,
+    fontWeight: '600',
+    color: BrandColors.black,
+    marginBottom: Spacing.xs,
+  },
+  errorSubtext: {
+    fontSize: 14,
     color: BrandColors.gray.medium,
   },
-  locationsGrid: {
-    width: '100%',
+  emptyContainer: {
+    paddingVertical: Spacing.xxl * 3,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    fontSize: 15,
+    color: BrandColors.gray.medium,
+  },
+  loadMoreContainer: {
+    paddingVertical: Spacing.xxl,
+    alignItems: 'center',
+  },
+  loadingMore: {
+    paddingVertical: Spacing.lg,
+    alignItems: 'center',
   },
 });

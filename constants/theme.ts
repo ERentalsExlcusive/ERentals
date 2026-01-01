@@ -5,17 +5,18 @@
 
 import { Platform } from 'react-native';
 
-// Brand Colors
+// Brand Colors - Minimalist black/white with subtle gold accent
 export const BrandColors = {
-  primary: '#1f2839',      // Dark navy
-  secondary: '#bc944d',    // Gold accent
+  primary: '#000000',      // Pure black
+  secondary: '#bc944d',    // Gold accent (subtle use only)
   white: '#ffffff',
   black: '#000000',
   gray: {
-    light: '#f5f4f4',
-    medium: '#818181',
-    dark: '#505050',
-    darker: '#232323',
+    light: '#f8f8f8',      // Ultra light gray for backgrounds
+    medium: '#999999',     // Medium gray for secondary text
+    dark: '#333333',       // Dark gray for text
+    darker: '#1a1a1a',     // Almost black
+    border: '#e5e5e5',     // Light border color
   },
 };
 
@@ -80,16 +81,39 @@ export const Typography = {
   },
 };
 
-// Button styles
+// Button styles - Ghost, pill, and solid variants
 export const ButtonStyles = {
+  // Solid button (minimal use)
   primary: {
-    backgroundColor: BrandColors.secondary,
-    paddingVertical: 16,
-    paddingHorizontal: 32,
-    borderRadius: 10,
+    backgroundColor: BrandColors.black,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 24, // Pill shape
   },
   primaryPressed: {
-    backgroundColor: BrandColors.primary,
+    backgroundColor: BrandColors.gray.darker,
+  },
+  // Ghost button (transparent with border)
+  ghost: {
+    backgroundColor: 'transparent',
+    borderWidth: 1,
+    borderColor: BrandColors.black,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 24, // Pill shape
+  },
+  ghostPressed: {
+    backgroundColor: 'rgba(0, 0, 0, 0.05)',
+  },
+  // Gold accent button
+  accent: {
+    backgroundColor: BrandColors.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 28,
+    borderRadius: 24, // Pill shape
+  },
+  accentPressed: {
+    backgroundColor: '#a67d3a',
   },
 };
 

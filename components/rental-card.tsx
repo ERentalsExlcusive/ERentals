@@ -16,6 +16,7 @@ export function RentalCard({ rental, onPress }: RentalCardProps) {
       style={({ pressed }) => [styles.card, pressed && styles.cardPressed]}
       onPress={() => onPress?.(rental)}
     >
+      {/* Image */}
       {rental.featuredImage ? (
         <Image
           source={{ uri: rental.featuredImage.sizes.large || rental.featuredImage.url }}
@@ -28,22 +29,26 @@ export function RentalCard({ rental, onPress }: RentalCardProps) {
         </View>
       )}
 
-      <View style={styles.overlay} />
-
+      {/* Content below image */}
       <View style={styles.content}>
-        {rental.category && (
-          <View style={styles.categoryBadge}>
-            <Text style={styles.categoryText}>{rental.category.name}</Text>
-          </View>
-        )}
-
-        <Text style={styles.title} numberOfLines={2}>
-          {rental.title.replace(' – Preview', '')}
-        </Text>
+        <View style={styles.header}>
+          <Text style={styles.title} numberOfLines={1}>
+            {rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
+          </Text>
+          {rental.category && (
+            <Text style={styles.category}>{rental.category.name}</Text>
+          )}
+        </View>
 
         {location && (
-          <Text style={styles.location}>{location}</Text>
+          <Text style={styles.location} numberOfLines={1}>{location}</Text>
         )}
+
+        {/* Pricing placeholder - can be populated from ACF fields */}
+        <View style={styles.footer}>
+          <Text style={styles.priceLabel}>From</Text>
+          <Text style={styles.price}>Contact for pricing</Text>
+        </View>
       </View>
     </Pressable>
   );
@@ -51,66 +56,69 @@ export function RentalCard({ rental, onPress }: RentalCardProps) {
 
 const styles = StyleSheet.create({
   card: {
-    borderRadius: 12,
+    backgroundColor: BrandColors.white,
+    borderRadius: 8,
     overflow: 'hidden',
-    backgroundColor: BrandColors.gray.light,
-    marginBottom: Spacing.md,
-    height: 280,
+    marginBottom: Spacing.lg,
+    borderWidth: 1,
+    borderColor: BrandColors.gray.border,
   },
   cardPressed: {
-    opacity: 0.9,
-    transform: [{ scale: 0.98 }],
+    opacity: 0.8,
   },
   image: {
     width: '100%',
-    height: '100%',
-    position: 'absolute',
+    height: 240,
   },
   imagePlaceholder: {
-    backgroundColor: BrandColors.gray.medium,
+    backgroundColor: BrandColors.gray.light,
     alignItems: 'center',
     justifyContent: 'center',
   },
   placeholderText: {
-    fontFamily: 'CormorantGaramond_400Regular',
-    fontSize: 16,
-    color: BrandColors.white,
-  },
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.35)',
+    fontSize: 14,
+    color: BrandColors.gray.medium,
   },
   content: {
-    position: 'absolute',
-    bottom: 0,
-    left: 0,
-    right: 0,
-    padding: Spacing.lg,
+    padding: Spacing.md,
   },
-  categoryBadge: {
-    backgroundColor: BrandColors.secondary,
-    paddingVertical: 4,
-    paddingHorizontal: 12,
-    borderRadius: 4,
-    alignSelf: 'flex-start',
-    marginBottom: Spacing.sm,
-  },
-  categoryText: {
-    fontFamily: 'CormorantGaramond_600SemiBold',
-    fontSize: 12,
-    color: BrandColors.white,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: Spacing.xs,
   },
   title: {
-    fontFamily: 'CormorantGaramond_700Bold',
-    fontSize: 24,
-    color: BrandColors.white,
-    marginBottom: 4,
+    fontSize: 18,
+    fontWeight: '600',
+    color: BrandColors.black,
+    flex: 1,
+    marginRight: Spacing.sm,
+  },
+  category: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: BrandColors.gray.medium,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   location: {
-    fontFamily: 'CormorantGaramond_400Regular',
-    fontSize: 16,
-    color: BrandColors.gray.light,
+    fontSize: 14,
+    color: BrandColors.gray.dark,
+    marginBottom: Spacing.sm,
+  },
+  footer: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    gap: Spacing.xs,
+  },
+  priceLabel: {
+    fontSize: 13,
+    color: BrandColors.gray.medium,
+  },
+  price: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: BrandColors.black,
   },
 });

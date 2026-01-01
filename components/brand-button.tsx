@@ -1,10 +1,10 @@
 import { Pressable, Text, StyleSheet, ViewStyle, TextStyle } from 'react-native';
-import { BrandColors, Typography } from '@/constants/theme';
+import { BrandColors, Typography, ButtonStyles } from '@/constants/theme';
 
 interface BrandButtonProps {
   title: string;
   onPress?: () => void;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'ghost' | 'accent';
   style?: ViewStyle;
   textStyle?: TextStyle;
 }
@@ -17,42 +17,42 @@ export function BrandButton({
   textStyle,
 }: BrandButtonProps) {
   const getButtonStyle = (pressed: boolean) => {
-    const baseStyle = styles.button;
-
     switch (variant) {
       case 'primary':
         return [
-          baseStyle,
-          styles.primaryButton,
-          pressed && styles.primaryButtonPressed,
+          ButtonStyles.primary,
+          pressed && ButtonStyles.primaryPressed,
           style,
         ];
-      case 'secondary':
+      case 'ghost':
         return [
-          baseStyle,
-          styles.secondaryButton,
-          pressed && styles.secondaryButtonPressed,
+          ButtonStyles.ghost,
+          pressed && ButtonStyles.ghostPressed,
           style,
         ];
-      case 'outline':
+      case 'accent':
         return [
-          baseStyle,
-          styles.outlineButton,
-          pressed && styles.outlineButtonPressed,
+          ButtonStyles.accent,
+          pressed && ButtonStyles.accentPressed,
           style,
         ];
       default:
-        return [baseStyle, style];
+        return [ButtonStyles.primary, style];
     }
   };
 
   const getTextStyle = (pressed: boolean) => {
     switch (variant) {
-      case 'outline':
+      case 'ghost':
         return [
           styles.buttonText,
-          styles.outlineButtonText,
-          pressed && styles.outlineButtonTextPressed,
+          styles.ghostButtonText,
+          textStyle,
+        ];
+      case 'accent':
+        return [
+          styles.buttonText,
+          styles.accentButtonText,
           textStyle,
         ];
       default:
@@ -73,44 +73,16 @@ export function BrandButton({
 }
 
 const styles = StyleSheet.create({
-  button: {
-    paddingVertical: 16,
-    paddingHorizontal: 40,
-    borderRadius: 10,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryButton: {
-    backgroundColor: BrandColors.secondary,
-  },
-  primaryButtonPressed: {
-    backgroundColor: BrandColors.primary,
-  },
-  secondaryButton: {
-    backgroundColor: BrandColors.primary,
-  },
-  secondaryButtonPressed: {
-    backgroundColor: BrandColors.gray.darker,
-  },
-  outlineButton: {
-    backgroundColor: 'transparent',
-    borderWidth: 2,
-    borderColor: BrandColors.secondary,
-  },
-  outlineButtonPressed: {
-    backgroundColor: BrandColors.secondary,
-  },
   buttonText: {
-    fontFamily: 'CormorantGaramond_600SemiBold',
     fontSize: Typography.button.fontSize,
+    fontWeight: '600',
     color: BrandColors.white,
-    letterSpacing: 1,
-    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
-  outlineButtonText: {
-    color: BrandColors.secondary,
+  ghostButtonText: {
+    color: BrandColors.black,
   },
-  outlineButtonTextPressed: {
+  accentButtonText: {
     color: BrandColors.white,
   },
 });

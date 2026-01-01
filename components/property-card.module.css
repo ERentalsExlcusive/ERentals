@@ -1,0 +1,21 @@
+/* Hover effects for property cards - Web only */
+.card:hover .imageContainer {
+  transform: scale(1.02);
+}
+
+.card:hover .image {
+  transform: scale(1.05);
+}
+
+.card:hover {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.12);
+}
+
+.wishlistButton {
+  transition: transform 0.2s ease, opacity 0.2s ease;
+}
+
+.wishlistButton:hover {
+  transform: scale(1.1);
+  opacity: 1 !important;
+}
