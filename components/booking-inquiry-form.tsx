@@ -174,12 +174,12 @@ export function BookingInquiryForm({
         ].filter(Boolean),
       };
 
-      // GoHighLevel webhook URL
-      const webhookUrl = 'https://services.leadconnectorhq.com/hooks/erentals-inquiry';
+      // Use our API endpoint to submit lead (handles CORS and GHL forwarding)
+      const apiUrl = '/api/lead';
 
       let webhookFailed = false;
       try {
-        const response = await fetch(webhookUrl, {
+        const response = await fetch(apiUrl, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -187,16 +187,20 @@ export function BookingInquiryForm({
           body: JSON.stringify(payload),
         });
 
-        // Log response for debugging
-        console.log('Webhook response:', response.status);
+        const result = await response.json();
+        console.log('Lead API response:', result);
 
-        if (!response.ok) {
-          console.warn('Webhook returned non-OK status:', response.status);
+        if (!response.ok || !result.success) {
+          console.warn('Lead submission issue:', result);
+          webhookFailed = true;
+        } else if (!result.webhookDelivered) {
+          // API succeeded but webhook delivery failed
+          console.warn('Lead saved but webhook delivery failed');
           webhookFailed = true;
         }
-      } catch (webhookError) {
+      } catch (apiError) {
         // Log but don't fail - still show confirmation with warning
-        console.warn('Webhook delivery failed, but continuing:', webhookError);
+        console.warn('Lead API error, but continuing:', apiError);
         webhookFailed = true;
       }
 
