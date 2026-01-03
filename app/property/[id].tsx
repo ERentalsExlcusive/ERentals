@@ -31,6 +31,7 @@ import { BookingConfirmation } from '@/components/booking-confirmation';
 import { CharterBookingForm, CharterBookingData } from '@/components/charter-booking-form';
 import { useAvailability } from '@/hooks/use-availability';
 import { useSearchContext } from '@/context/search-context';
+import { LocationMap } from '@/components/location-map';
 
 // Map amenity names to luxury icons
 function getAmenityIcon(amenity: string) {
@@ -413,6 +414,11 @@ export default function PropertyDetailScreen() {
                 <Text style={[styles.locationDescription, isMobile && styles.descriptionMobile]}>
                   {getLocationCopy(rental.city?.name, rental.country?.name, rental.category?.name)}
                 </Text>
+                <LocationMap
+                  city={rental.city?.name}
+                  country={rental.country?.name}
+                  isMobile={isMobile}
+                />
               </View>
             </View>
           )}
