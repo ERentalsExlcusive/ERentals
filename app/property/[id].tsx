@@ -108,6 +108,52 @@ function parseNightlyRate(displayPrice?: string): number | undefined {
   return undefined;
 }
 
+// Extract yacht length from asset name (e.g., "32m", "66'", "72ft")
+function extractYachtLength(assetName: string): string | null {
+  // Match patterns like "32m", "66'", "72ft", "80'" or just numbers followed by unit
+  const match = assetName.match(/(\d+)\s*(m|ft|'|meter|feet)/i);
+  if (match) {
+    const value = match[1];
+    const unit = match[2].toLowerCase();
+    if (unit === 'm' || unit === 'meter') {
+      return `${value}m`;
+    }
+    return `${value}ft`;
+  }
+  // Try to extract just a number that looks like length (2-3 digits typically between 40-100)
+  const numberMatch = assetName.match(/\b(\d{2})\b/);
+  if (numberMatch) {
+    const num = parseInt(numberMatch[1], 10);
+    if (num >= 30 && num <= 120) {
+      return `${num}ft`;
+    }
+  }
+  return null;
+}
+
+// Determine vehicle type from asset name and overview
+function getVehicleType(assetName: string, overview?: string): { type: string; icon: string } {
+  const text = `${assetName} ${overview || ''}`.toLowerCase();
+
+  if (text.includes('suv') || text.includes('escalade') || text.includes('navigator') ||
+      text.includes('suburban') || text.includes('expedition') || text.includes('cullinan') ||
+      text.includes('urus') || text.includes('g63') || text.includes('g-class')) {
+    return { type: 'SUV', icon: 'truck' };
+  }
+  if (text.includes('van') || text.includes('v-class') || text.includes('v‑class')) {
+    return { type: 'Luxury Van', icon: 'truck' };
+  }
+  if (text.includes('supercar') || text.includes('spyder') || text.includes('convertible') ||
+      text.includes('lamborghini') || text.includes('ferrari')) {
+    return { type: 'Supercar', icon: 'zap' };
+  }
+  if (text.includes('sedan') || text.includes('s-class') || text.includes('s‑class') ||
+      text.includes('e-class') || text.includes('e‑class') || text.includes('ghost')) {
+    return { type: 'Luxury Sedan', icon: 'navigation' };
+  }
+  return { type: 'Luxury Vehicle', icon: 'navigation' };
+}
+
 // Generate location editorial copy
 function getLocationCopy(city?: string, country?: string, category?: string): string {
   if (!city) return '';
@@ -333,19 +379,50 @@ export default function PropertyDetailScreen() {
             {/* Inline Specs - With Icons */}
             {propertyData && (
               <View style={styles.specsInline}>
+                {/* Yacht-specific: Length first */}
+                {propertyData.category === 'yacht' && (() => {
+                  const length = extractYachtLength(propertyData.assetName);
+                  return length ? (
+                    <>
+                      <View style={styles.specItem}>
+                        <Feather name="maximize-2" size={16} color={BrandColors.gray.dark} />
+                        <Text style={styles.specInlineText}>{length} Length</Text>
+                      </View>
+                      <Text style={styles.specDivider}>·</Text>
+                    </>
+                  ) : null;
+                })()}
+
+                {/* Transport-specific: Vehicle type first */}
+                {propertyData.category === 'transport' && (() => {
+                  const vehicle = getVehicleType(propertyData.assetName, propertyData.overview);
+                  return (
+                    <>
+                      <View style={styles.specItem}>
+                        <Feather name={vehicle.icon as any} size={16} color={BrandColors.gray.dark} />
+                        <Text style={styles.specInlineText}>{vehicle.type}</Text>
+                      </View>
+                      <Text style={styles.specDivider}>·</Text>
+                    </>
+                  );
+                })()}
+
+                {/* Guest capacity */}
                 {propertyData.guestMax && (
                   <>
                     <View style={styles.specItem}>
                       <Feather name="users" size={16} color={BrandColors.gray.dark} />
                       <Text style={styles.specInlineText}>
-                        {propertyData.guestMax} {propertyData.guestMax === 1 ? 'Guest' : 'Guests'}
+                        {propertyData.guestMax} {propertyData.category === 'transport' ? 'Passengers' : propertyData.guestMax === 1 ? 'Guest' : 'Guests'}
                       </Text>
                     </View>
-                    {(propertyData.bedrooms || propertyData.bathrooms) && (
+                    {(propertyData.bedrooms || propertyData.bathrooms) && propertyData.category !== 'transport' && (
                       <Text style={styles.specDivider}>·</Text>
                     )}
                   </>
                 )}
+
+                {/* Cabins/Bedrooms (not for transport) */}
                 {propertyData.bedrooms && propertyData.category !== 'transport' && (
                   <>
                     <View style={styles.specItem}>
@@ -359,6 +436,8 @@ export default function PropertyDetailScreen() {
                     )}
                   </>
                 )}
+
+                {/* Bathrooms (not for transport) */}
                 {propertyData.bathrooms && propertyData.category !== 'transport' && (
                   <View style={styles.specItem}>
                     <Feather name="droplet" size={16} color={BrandColors.gray.dark} />
@@ -366,6 +445,32 @@ export default function PropertyDetailScreen() {
                       {propertyData.bathrooms} {propertyData.bathrooms === 1 ? 'Bath' : 'Baths'}
                     </Text>
                   </View>
+                )}
+
+                {/* Yacht: Crew included indicator */}
+                {propertyData.category === 'yacht' && propertyData.amenities?.some(a =>
+                  a.toLowerCase().includes('crew') || a.toLowerCase().includes('captain')
+                ) && (
+                  <>
+                    <Text style={styles.specDivider}>·</Text>
+                    <View style={styles.specItem}>
+                      <Feather name="award" size={16} color={BrandColors.gray.dark} />
+                      <Text style={styles.specInlineText}>Crew Included</Text>
+                    </View>
+                  </>
+                )}
+
+                {/* Transport: Chauffeur indicator */}
+                {propertyData.category === 'transport' && propertyData.amenities?.some(a =>
+                  a.toLowerCase().includes('chauffeur') || a.toLowerCase().includes('driver')
+                ) && (
+                  <>
+                    <Text style={styles.specDivider}>·</Text>
+                    <View style={styles.specItem}>
+                      <Feather name="user" size={16} color={BrandColors.gray.dark} />
+                      <Text style={styles.specInlineText}>Chauffeur Available</Text>
+                    </View>
+                  </>
                 )}
               </View>
             )}
