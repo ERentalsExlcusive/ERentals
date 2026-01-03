@@ -131,7 +131,7 @@ export function useDestinations() {
               slug: c.slug,
               imageUrl: FEATURED_DESTINATIONS[key] || cityImages[key],
               propertyCount: stats?.count || c.count,
-              startingPrice: stats?.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
+              startingPrice: stats && stats.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
               categories: stats?.categories,
             };
           }),
@@ -145,7 +145,7 @@ export function useDestinations() {
               slug: c.slug,
               imageUrl: FEATURED_DESTINATIONS[key],
               propertyCount: stats?.count || c.count,
-              startingPrice: stats?.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
+              startingPrice: stats && stats.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
               categories: stats?.categories,
             };
           }),

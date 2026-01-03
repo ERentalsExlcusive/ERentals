@@ -114,7 +114,7 @@ const OCCASIONS = [
 ];
 
 export function SearchBar({ onSearch, selectedCategory = 'all' }: SearchBarProps) {
-  const { destinations, featured, loading } = useDestinations();
+  const { destinations, featured, loading, error } = useDestinations();
   const { isMobile } = useResponsive();
   const { searchState, setSearchState } = useSearchContext();
 
