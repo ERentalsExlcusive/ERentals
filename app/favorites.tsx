@@ -1,3 +1,4 @@
+import { useState, useMemo } from 'react';
 import { StyleSheet, View, Text, ScrollView, Pressable, Platform } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -9,7 +10,7 @@ import { useAuth } from '@/context/auth-context';
 import { Header } from '@/components/header';
 import { PropertyCard } from '@/components/property-card';
 import { useRentals } from '@/hooks/use-rentals';
-import { useMemo } from 'react';
+import { AuthModal } from '@/components/auth-modal';
 
 export default function FavoritesScreen() {
   const router = useRouter();
@@ -17,6 +18,7 @@ export default function FavoritesScreen() {
   const { user, isAuthenticated } = useAuth();
   const { favorites, isLoading: isFavoritesLoading, removeFavorite } = useFavorites();
   const { rentals, isLoading: isRentalsLoading } = useRentals({ perPage: 100 });
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
   // Get full rental data for favorited properties
   const favoriteRentals = useMemo(() => {
@@ -58,12 +60,18 @@ export default function FavoritesScreen() {
 
           {/* Auth prompt for anonymous users */}
           {user?.isAnonymous && favorites.length > 0 && (
-            <View style={styles.authPrompt}>
-              <Feather name="info" size={16} color={BrandColors.secondary} />
-              <Text style={styles.authPromptText}>
-                Sign in to sync your favorites across devices
-              </Text>
-            </View>
+            <Pressable style={styles.authPrompt} onPress={() => setShowAuthModal(true)}>
+              <View style={styles.authPromptIcon}>
+                <Feather name="cloud" size={20} color={BrandColors.secondary} />
+              </View>
+              <View style={styles.authPromptContent}>
+                <Text style={styles.authPromptTitle}>Sync your favorites</Text>
+                <Text style={styles.authPromptText}>
+                  Sign in to access your saved listings on any device
+                </Text>
+              </View>
+              <Feather name="chevron-right" size={20} color={BrandColors.gray.medium} />
+            </Pressable>
           )}
 
           {/* Loading state */}
@@ -107,6 +115,9 @@ export default function FavoritesScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Auth Modal */}
+      <AuthModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }
@@ -167,17 +178,36 @@ const styles = StyleSheet.create({
   authPrompt: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Space[2],
-    backgroundColor: `${BrandColors.secondary}10`,
+    gap: Space[4],
+    backgroundColor: `${BrandColors.secondary}08`,
+    borderWidth: 1,
+    borderColor: `${BrandColors.secondary}20`,
     padding: Space[4],
     borderRadius: Radius.lg,
     marginBottom: Space[6],
+  },
+  authPromptIcon: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: `${BrandColors.secondary}15`,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  authPromptContent: {
+    flex: 1,
+  },
+  authPromptTitle: {
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+    marginBottom: 2,
   },
   authPromptText: {
     fontSize: FontSize.sm,
     lineHeight: LineHeight.sm,
     color: BrandColors.gray.dark,
-    flex: 1,
   },
   emptyState: {
     alignItems: 'center',

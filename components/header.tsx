@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -5,6 +6,8 @@ import { BrandColors, Spacing } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, ZIndex } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
 import { useFavorites } from '@/hooks/use-favorites';
+import { useAuth } from '@/context/auth-context';
+import { AuthModal } from './auth-modal';
 
 interface HeaderProps {
   onCategorySelect?: (category: 'villa' | 'yacht' | 'transport') => void;
@@ -15,12 +18,23 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
   const router = useRouter();
   const { isMobile } = useResponsive();
   const { favoritesCount } = useFavorites();
+  const { user, isAuthenticated, signOut } = useAuth();
+  const [showAuthModal, setShowAuthModal] = useState(false);
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   const handleHomePress = () => {
     if (onHomePress) {
       onHomePress();
     } else {
       router.push('/');
+    }
+  };
+
+  const handleUserPress = () => {
+    if (isAuthenticated) {
+      setShowUserMenu(!showUserMenu);
+    } else {
+      setShowAuthModal(true);
     }
   };
 
@@ -63,7 +77,7 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
           </View>
         )}
 
-        {/* Right side - Favorites & Owner Portal */}
+        {/* Right side - Favorites, User & Owner Portal */}
         <View style={styles.rightSection}>
           <Pressable style={styles.favoritesButton} onPress={() => router.push('/favorites')}>
             <Feather name="heart" size={20} color={BrandColors.black} />
@@ -73,11 +87,46 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
               </View>
             )}
           </Pressable>
+
+          {/* User Button */}
+          <View style={styles.userButtonContainer}>
+            <Pressable style={styles.userButton} onPress={handleUserPress}>
+              {isAuthenticated ? (
+                <View style={styles.userAvatar}>
+                  <Text style={styles.userAvatarText}>
+                    {user?.name?.[0]?.toUpperCase() || user?.email?.[0]?.toUpperCase() || 'U'}
+                  </Text>
+                </View>
+              ) : (
+                <Feather name="user" size={20} color={BrandColors.black} />
+              )}
+            </Pressable>
+
+            {/* User Dropdown Menu */}
+            {showUserMenu && isAuthenticated && (
+              <View style={styles.userMenu}>
+                <Text style={styles.userMenuEmail}>{user?.email}</Text>
+                <View style={styles.userMenuDivider} />
+                <Pressable style={styles.userMenuItem} onPress={() => { router.push('/favorites'); setShowUserMenu(false); }}>
+                  <Feather name="heart" size={16} color={BrandColors.gray.dark} />
+                  <Text style={styles.userMenuItemText}>Saved Listings</Text>
+                </Pressable>
+                <Pressable style={styles.userMenuItem} onPress={() => { signOut(); setShowUserMenu(false); }}>
+                  <Feather name="log-out" size={16} color={BrandColors.gray.dark} />
+                  <Text style={styles.userMenuItemText}>Sign Out</Text>
+                </Pressable>
+              </View>
+            )}
+          </View>
+
           <Pressable style={[styles.ownerPortal, isMobile && styles.ownerPortalMobile]} onPress={() => router.push('/owner-portal')}>
             <Text style={[styles.ownerPortalText, isMobile && styles.ownerPortalTextMobile]}>Owner Portal</Text>
           </Pressable>
         </View>
       </View>
+
+      {/* Auth Modal */}
+      <AuthModal visible={showAuthModal} onClose={() => setShowAuthModal(false)} />
     </View>
   );
 }
@@ -194,5 +243,68 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: FontWeight.bold,
     color: BrandColors.white,
+  },
+  userButtonContainer: {
+    position: 'relative',
+  },
+  userButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatar: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: BrandColors.secondary,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  userAvatarText: {
+    fontSize: FontSize.sm,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.white,
+  },
+  userMenu: {
+    position: 'absolute',
+    top: 48,
+    right: 0,
+    backgroundColor: BrandColors.white,
+    borderRadius: Radius.lg,
+    padding: Space[2],
+    minWidth: 200,
+    ...Platform.select({
+      web: {
+        boxShadow: '0 10px 40px rgba(0, 0, 0, 0.15)',
+      },
+    }),
+    zIndex: ZIndex.dropdown,
+  },
+  userMenuEmail: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    color: BrandColors.gray.medium,
+    paddingHorizontal: Space[3],
+    paddingVertical: Space[2],
+  },
+  userMenuDivider: {
+    height: 1,
+    backgroundColor: BrandColors.gray.border,
+    marginVertical: Space[2],
+  },
+  userMenuItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[3],
+    paddingHorizontal: Space[3],
+    paddingVertical: Space[3],
+    borderRadius: Radius.md,
+  },
+  userMenuItemText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    color: BrandColors.black,
   },
 });
