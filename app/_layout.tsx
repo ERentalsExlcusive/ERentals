@@ -102,6 +102,10 @@ export default function RootLayout() {
         <Stack>
           <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
           <Stack.Screen name="property/[id]" options={{ headerShown: false }} />
+          <Stack.Screen name="collaborate" options={{ headerShown: false }} />
+          <Stack.Screen name="blog" options={{ headerShown: false }} />
+          <Stack.Screen name="about" options={{ headerShown: false }} />
+          <Stack.Screen name="owner-portal" options={{ headerShown: false }} />
           <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
         </Stack>
         <StatusBar style="light" translucent backgroundColor="transparent" />

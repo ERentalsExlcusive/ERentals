@@ -329,14 +329,17 @@ export default function PropertyDetailScreen() {
               {rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
             </Text>
 
-            {/* Inline Specs - Editorial Minimal */}
+            {/* Inline Specs - With Icons */}
             {propertyData && (
               <View style={styles.specsInline}>
                 {propertyData.guestMax && (
                   <>
-                    <Text style={styles.specInlineText}>
-                      {propertyData.guestMax} {propertyData.guestMax === 1 ? 'Guest' : 'Guests'}
-                    </Text>
+                    <View style={styles.specItem}>
+                      <Feather name="users" size={16} color={BrandColors.gray.dark} />
+                      <Text style={styles.specInlineText}>
+                        {propertyData.guestMax} {propertyData.guestMax === 1 ? 'Guest' : 'Guests'}
+                      </Text>
+                    </View>
                     {(propertyData.bedrooms || propertyData.bathrooms) && (
                       <Text style={styles.specDivider}>·</Text>
                     )}
@@ -344,21 +347,43 @@ export default function PropertyDetailScreen() {
                 )}
                 {propertyData.bedrooms && propertyData.category !== 'transport' && (
                   <>
-                    <Text style={styles.specInlineText}>
-                      {propertyData.bedrooms} {propertyData.category === 'yacht' ? 'Cabins' : propertyData.bedrooms === 1 ? 'Bedroom' : 'Bedrooms'}
-                    </Text>
+                    <View style={styles.specItem}>
+                      <Feather name={propertyData.category === 'yacht' ? 'anchor' : 'home'} size={16} color={BrandColors.gray.dark} />
+                      <Text style={styles.specInlineText}>
+                        {propertyData.bedrooms} {propertyData.category === 'yacht' ? 'Cabins' : propertyData.bedrooms === 1 ? 'Bedroom' : 'Bedrooms'}
+                      </Text>
+                    </View>
                     {propertyData.bathrooms && (
                       <Text style={styles.specDivider}>·</Text>
                     )}
                   </>
                 )}
                 {propertyData.bathrooms && propertyData.category !== 'transport' && (
-                  <Text style={styles.specInlineText}>
-                    {propertyData.bathrooms} {propertyData.bathrooms === 1 ? 'Bath' : 'Baths'}
-                  </Text>
+                  <View style={styles.specItem}>
+                    <Feather name="droplet" size={16} color={BrandColors.gray.dark} />
+                    <Text style={styles.specInlineText}>
+                      {propertyData.bathrooms} {propertyData.bathrooms === 1 ? 'Bath' : 'Baths'}
+                    </Text>
+                  </View>
                 )}
               </View>
             )}
+
+            {/* Trust Indicators */}
+            <View style={styles.trustIndicators}>
+              <View style={styles.trustBadge}>
+                <Feather name="check-circle" size={14} color={BrandColors.secondary} />
+                <Text style={styles.trustText}>Verified</Text>
+              </View>
+              <View style={styles.trustBadge}>
+                <Feather name="headphones" size={14} color={BrandColors.secondary} />
+                <Text style={styles.trustText}>24/7 Concierge</Text>
+              </View>
+              <View style={styles.trustBadge}>
+                <Feather name="shield" size={14} color={BrandColors.secondary} />
+                <Text style={styles.trustText}>Secure Booking</Text>
+              </View>
+            </View>
           </View>
 
           <View style={styles.goldDivider} />
@@ -717,6 +742,32 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',
+  },
+  specItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[2],
+  },
+  trustIndicators: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space[3],
+    marginTop: Space[4],
+  },
+  trustBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[1],
+    paddingVertical: Space[1],
+    paddingHorizontal: Space[3],
+    backgroundColor: `${BrandColors.secondary}10`,
+    borderRadius: Radius.full,
+  },
+  trustText: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    fontWeight: FontWeight.medium,
+    color: BrandColors.gray.dark,
   },
   specInlineText: {
     fontSize: FontSize.base,

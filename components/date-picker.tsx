@@ -1,5 +1,6 @@
 import { View, Text, StyleSheet, Pressable, Platform, TouchableOpacity } from 'react-native';
 import { useState, useMemo, useCallback } from 'react';
+import { Feather } from '@expo/vector-icons';
 import { BrandColors } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow, TouchTarget } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
@@ -37,6 +38,7 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
     if (startDate && !endDate) return false; // Only start: continue to end
     return true; // No dates: select start
   });
+  const [invalidRangeMessage, setInvalidRangeMessage] = useState<string | null>(null);
 
   // Helper to check if a date is blocked
   const isDateBlocked = (date: Date): boolean => {
@@ -162,9 +164,12 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
 
       // Check if range contains blocked dates
       if (hasBlockedDateInRange(selectedStart, selectedEnd)) {
-        // Range contains blocked dates - find next available end
-        const availableEnd = findNextAvailableEnd(selectedStart, Math.max(nights, minNights));
-        onDatesChange(selectedStart, availableEnd);
+        // Range contains blocked dates - show error and reset
+        setInvalidRangeMessage('Your selection includes unavailable dates');
+        setTimeout(() => setInvalidRangeMessage(null), 3000);
+        setSelectingStart(true);
+        onDatesChange(null, null);
+        return;
       } else if (nights < minNights) {
         // Enforce minimum nights - extend checkout
         const extendedEnd = findNextAvailableEnd(selectedStart, minNights);
@@ -312,7 +317,24 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
         {blockedDates && blockedDates.size > 0 && !isLoadingAvailability && (
           <Text style={styles.blockedInfo}>Strikethrough dates are unavailable</Text>
         )}
+        {invalidRangeMessage && (
+          <Text style={styles.invalidRangeText}>{invalidRangeMessage}</Text>
+        )}
       </View>
+
+      {/* Clear Dates Button */}
+      {(startDate || endDate) && (
+        <Pressable
+          style={styles.clearDatesButton}
+          onPress={() => {
+            onDatesChange(null, null);
+            setSelectingStart(true);
+          }}
+        >
+          <Feather name="x" size={14} color={BrandColors.gray.dark} />
+          <Text style={styles.clearDatesText}>Clear dates</Text>
+        </Pressable>
+      )}
     </View>
   );
 }
@@ -520,5 +542,32 @@ const styles = StyleSheet.create({
     lineHeight: LineHeight.xs,
     color: BrandColors.gray.medium,
     marginTop: Space[2],
+  },
+  invalidRangeText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.medium,
+    color: '#c0392b',
+    marginTop: Space[2],
+    textAlign: 'center',
+  },
+  clearDatesButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Space[2],
+    paddingVertical: Space[3],
+    marginTop: Space[2],
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
+  },
+  clearDatesText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.medium,
+    color: BrandColors.gray.dark,
   },
 });

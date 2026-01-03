@@ -393,7 +393,9 @@ export function CharterBookingForm({
             style={[styles.input, styles.inputMultiline]}
             value={notes}
             onChangeText={setNotes}
-            placeholder="Dietary needs, special arrangements..."
+            placeholder={isTransport
+              ? "Stops, luggage requirements, special instructions..."
+              : "Dietary needs, special arrangements..."}
             placeholderTextColor={BrandColors.gray.medium}
             multiline
             numberOfLines={3}

@@ -1,13 +1,24 @@
-import { StyleSheet, View, Text, ScrollView, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Platform, TextInput, Pressable } from 'react-native';
+import { useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
 import { BrandColors, Spacing } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius } from '@/constants/design-tokens';
 import { Header } from '@/components/header';
 import { useResponsive } from '@/hooks/use-responsive';
 
 export default function CreatorHubScreen() {
   const router = useRouter();
   const { isMobile } = useResponsive();
+  const [email, setEmail] = useState('');
+  const [submitted, setSubmitted] = useState(false);
+
+  const handleSubscribe = () => {
+    if (email.includes('@')) {
+      setSubmitted(true);
+      // TODO: Submit to newsletter backend
+    }
+  };
 
   return (
     <View style={styles.container}>
@@ -127,8 +138,31 @@ export default function CreatorHubScreen() {
             Be the First to Know
           </Text>
           <Text style={styles.ctaDescription}>
-            Creator Hub is launching soon. Stay tuned for the future of luxury travel content.
+            Creator Hub is launching soon. Subscribe to get notified and receive exclusive early access.
           </Text>
+
+          {/* Email Signup Form */}
+          {submitted ? (
+            <View style={styles.successMessage}>
+              <Feather name="check-circle" size={24} color={BrandColors.secondary} />
+              <Text style={styles.successText}>You're on the list!</Text>
+            </View>
+          ) : (
+            <View style={[styles.signupForm, isMobile && styles.signupFormMobile]}>
+              <TextInput
+                style={[styles.signupInput, isMobile && styles.signupInputMobile]}
+                placeholder="Enter your email"
+                placeholderTextColor={BrandColors.gray.medium}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+              <Pressable style={styles.signupButton} onPress={handleSubscribe}>
+                <Text style={styles.signupButtonText}>Notify Me</Text>
+              </Pressable>
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -370,5 +404,53 @@ const styles = StyleSheet.create({
     color: BrandColors.gray.light,
     textAlign: 'center',
     maxWidth: 600,
+  },
+  signupForm: {
+    flexDirection: 'row',
+    gap: Space[3],
+    marginTop: Space[8],
+    width: '100%',
+    maxWidth: 450,
+  },
+  signupFormMobile: {
+    flexDirection: 'column',
+  },
+  signupInput: {
+    flex: 1,
+    borderWidth: 1,
+    borderColor: BrandColors.gray.dark,
+    borderRadius: Radius.lg,
+    paddingVertical: Space[4],
+    paddingHorizontal: Space[5],
+    fontSize: FontSize.md,
+    color: BrandColors.white,
+    backgroundColor: 'transparent',
+  },
+  signupInputMobile: {
+    paddingVertical: Space[4],
+  },
+  signupButton: {
+    backgroundColor: BrandColors.secondary,
+    paddingVertical: Space[4],
+    paddingHorizontal: Space[8],
+    borderRadius: Radius.lg,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  signupButtonText: {
+    fontSize: FontSize.md,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.white,
+  },
+  successMessage: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[3],
+    marginTop: Space[8],
+  },
+  successText: {
+    fontSize: FontSize.lg,
+    fontWeight: FontWeight.medium,
+    color: BrandColors.white,
   },
 });

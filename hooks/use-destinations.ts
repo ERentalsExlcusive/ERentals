@@ -9,7 +9,7 @@ export interface Destination {
   type: 'city' | 'country';
   slug: string;
   imageUrl?: string;
-  propertyCount: number;
+  listingCount: number;
   startingPrice?: string;
   categories?: { villas: number; yachts: number; transport: number };
 }
@@ -130,7 +130,7 @@ export function useDestinations() {
               type: 'city' as const,
               slug: c.slug,
               imageUrl: FEATURED_DESTINATIONS[key] || cityImages[key],
-              propertyCount: stats?.count || c.count,
+              listingCount: stats?.count || c.count,
               startingPrice: stats && stats.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
               categories: stats?.categories,
             };
@@ -144,15 +144,15 @@ export function useDestinations() {
               type: 'country' as const,
               slug: c.slug,
               imageUrl: FEATURED_DESTINATIONS[key],
-              propertyCount: stats?.count || c.count,
+              listingCount: stats?.count || c.count,
               startingPrice: stats && stats.minPrice !== Infinity ? `$${stats.minPrice.toLocaleString()}` : undefined,
               categories: stats?.categories,
             };
           }),
         ];
 
-        // Sort by property count (most popular first)
-        allDestinations.sort((a, b) => b.propertyCount - a.propertyCount);
+        // Sort by listing count (most popular first)
+        allDestinations.sort((a, b) => b.listingCount - a.listingCount);
 
         setDestinations(allDestinations);
       } catch (err) {

@@ -685,7 +685,7 @@ export function SearchBar({ onSearch, selectedCategory = 'all' }: SearchBarProps
                   <View style={styles.destinationCardContent}>
                     <Text style={styles.destinationCardName}>{dest.name}</Text>
                     <Text style={styles.destinationCardMeta}>
-                      {dest.propertyCount} {dest.propertyCount === 1 ? 'property' : 'properties'}
+                      {dest.listingCount} {dest.listingCount === 1 ? 'listing' : 'listings'}
                       {dest.startingPrice && ` · From ${dest.startingPrice}`}
                     </Text>
                   </View>
@@ -724,7 +724,7 @@ export function SearchBar({ onSearch, selectedCategory = 'all' }: SearchBarProps
                   <Text style={styles.destinationName}>{dest.name}</Text>
                   <Text style={styles.destinationType}>
                     {dest.type === 'city' ? 'City' : 'Country'}
-                    {dest.propertyCount > 0 && ` · ${dest.propertyCount} properties`}
+                    {dest.listingCount > 0 && ` · ${dest.listingCount} listings`}
                   </Text>
                 </View>
                 {dest.startingPrice && (

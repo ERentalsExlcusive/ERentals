@@ -220,7 +220,10 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Explore Our Collection</Text>
             <Text style={styles.sectionSubtitle}>
-              {filteredRentals.length} {filteredRentals.length === 1 ? 'listing' : 'listings'}
+              {searchParams?.guests && searchParams.guests > 1
+                ? `${filteredRentals.length} of ${total} listings match your criteria`
+                : `${total} ${total === 1 ? 'listing' : 'listings'}`
+              }
             </Text>
           </View>
 
@@ -245,7 +248,7 @@ export default function HomeScreen() {
           </View>
         ) : error ? (
           <View style={styles.errorContainer}>
-            <Text style={styles.errorText}>Unable to load properties</Text>
+            <Text style={styles.errorText}>Unable to load listings</Text>
             <Text style={styles.errorSubtext}>Please try again later</Text>
           </View>
         ) : filteredRentals.length > 0 ? (
