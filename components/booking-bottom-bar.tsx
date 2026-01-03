@@ -67,6 +67,11 @@ export function BookingBottomBar({ price, category = 'villa', onInquire, hasAvai
               </Text>
             </View>
           )}
+          {/* Payment clarity for mobile */}
+          <View style={styles.paymentNote}>
+            <Feather name="lock" size={10} color={BrandColors.gray.medium} />
+            <Text style={styles.paymentNoteText}>You won't be charged yet</Text>
+          </View>
         </View>
 
         {/* Inquire Button */}
@@ -118,6 +123,17 @@ const styles = StyleSheet.create({
   },
   availabilityOpen: {
     color: '#16a34a',
+  },
+  paymentNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[1],
+    marginTop: Space[1],
+  },
+  paymentNoteText: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    color: BrandColors.gray.medium,
   },
   priceAmount: {
     fontSize: FontSize.xl,

@@ -73,8 +73,21 @@ export function BookingCard({ price, minStay, category = 'villa', onInquire, blo
         <Text style={styles.inquireText}>Request to Book</Text>
       </Pressable>
 
-      {/* Footer */}
-      <Text style={styles.footer}>You won't be charged yet</Text>
+      {/* Payment Clarity Section */}
+      <View style={styles.paymentClarity}>
+        <View style={styles.clarityItem}>
+          <Feather name="credit-card" size={14} color={BrandColors.gray.medium} />
+          <Text style={styles.clarityText}>You won't be charged yet</Text>
+        </View>
+        <View style={styles.clarityItem}>
+          <Feather name="user-check" size={14} color={BrandColors.gray.medium} />
+          <Text style={styles.clarityText}>Concierge confirms availability</Text>
+        </View>
+        <View style={styles.clarityItem}>
+          <Feather name="lock" size={14} color={BrandColors.gray.medium} />
+          <Text style={styles.clarityText}>Secure payment processing</Text>
+        </View>
+      </View>
 
       {/* Availability Status - Only show for villas */}
       {category === 'villa' && isLoadingAvailability && (
@@ -162,12 +175,19 @@ const styles = StyleSheet.create({
     color: BrandColors.white,
     letterSpacing: 0.2,
   },
-  footer: {
+  paymentClarity: {
+    marginTop: Space[5],
+    gap: Space[3],
+  },
+  clarityItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[3],
+  },
+  clarityText: {
     fontSize: FontSize.sm,
     lineHeight: LineHeight.sm,
     color: BrandColors.gray.dark,
-    textAlign: 'center',
-    marginTop: Space[4],
   },
   contactSection: {
     marginTop: Space[5],
