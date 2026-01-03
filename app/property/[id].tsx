@@ -1,9 +1,10 @@
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, Platform, useWindowDimensions, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
-import { useState, useEffect } from 'react';
-import { getRentals, getRentalGallery, GalleryImage } from '@/services/api';
+import { useState, useEffect, useRef } from 'react';
+import { getRentals, getRentalGallery, GalleryImage, submitCharterInquiry } from '@/services/api';
 import { Rental } from '@/types/rental';
 import { BrandColors, Spacing } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow, ZIndex, Container, TouchTarget } from '@/constants/design-tokens';
 import { BrandButton } from '@/components/brand-button';
 import { PropertyGallery } from '@/components/property-gallery';
 import { Header } from '@/components/header';
@@ -22,6 +23,14 @@ import {
   LuxuryPetIcon,
   LuxuryWasherIcon,
 } from '@/components/luxury-amenity-icons';
+import { BookingCard } from '@/components/booking-card';
+import { BookingBottomBar } from '@/components/booking-bottom-bar';
+import { PropertyPageSkeleton } from '@/components/skeleton';
+import { BookingInquiryForm } from '@/components/booking-inquiry-form';
+import { BookingConfirmation } from '@/components/booking-confirmation';
+import { CharterBookingForm, CharterBookingData } from '@/components/charter-booking-form';
+import { useAvailability } from '@/hooks/use-availability';
+import { useSearchContext } from '@/context/search-context';
 
 // Map amenity names to luxury icons
 function getAmenityIcon(amenity: string) {
@@ -39,20 +48,126 @@ function getAmenityIcon(amenity: string) {
   return null;
 }
 
+// Generate editorial luxury copy
+function getEditorialDescription(rental: Rental): string {
+  const category = rental.category?.name.toLowerCase() || 'property';
+  const city = rental.city?.name;
+  const country = rental.country?.name;
+
+  const destinations: Record<string, string> = {
+    'mykonos': 'the sun-drenched Cyclades',
+    'santorini': 'the iconic caldera',
+    'tulum': 'the Caribbean coastline',
+    'ibiza': 'the Balearic Islands',
+    'miami': 'the Miami shores',
+    'malibu': 'the Pacific Coast',
+    'aspen': 'the Rocky Mountains',
+    'st barts': 'the French West Indies',
+    'monaco': 'the French Riviera',
+    'dubai': 'the Arabian Gulf',
+  };
+
+  const locale = destinations[city?.toLowerCase() || ''] || (city && country ? `${city}, ${country}` : 'an exclusive destination');
+
+  const categoryDescriptors: Record<string, string[]> = {
+    'villa': [
+      `A sanctuary of refined living`,
+      `An architectural masterpiece`,
+      `A study in contemporary luxury`,
+      `An exercise in sophisticated restraint`,
+    ],
+    'yacht': [
+      `A floating palace of modern design`,
+      `Maritime elegance redefined`,
+      `Where nautical heritage meets contemporary luxury`,
+      `An intimate vessel of exceptional pedigree`,
+    ],
+    'transport': [
+      `Bespoke mobility, elevated`,
+      `Travel as art form`,
+      `Where journey becomes destination`,
+      `Curated movement, refined experience`,
+    ],
+  };
+
+  const descriptor = categoryDescriptors[category]?.[0] || 'An exceptional retreat';
+
+  return `${descriptor} set against ${locale}. Every detail has been considered, every element curated. This is the art of living, distilled to its essence.`;
+}
+
+// Generate location editorial copy
+function getLocationCopy(city?: string, country?: string, category?: string): string {
+  if (!city) return '';
+
+  const locationNarratives: Record<string, string> = {
+    'mykonos': 'Where ancient Cycladic tradition meets contemporary sophistication. Whitewashed architecture cascades down sun-bleached hillsides, while crystalline waters lap at private shores.',
+    'santorini': 'Perched above the caldera, where volcanic drama meets serene Aegean beauty. Sunset becomes ceremony, architecture becomes art.',
+    'tulum': 'Where jungle meets sea, ancient ruins meet modern design. The Caribbean whispers through palm fronds, turquoise waters stretch to infinity.',
+    'ibiza': 'Beyond the mythology, a refined sanctuary. Pine-scented cliffs, hidden calas, and Mediterranean light that transforms the ordinary into the sublime.',
+    'miami': 'Where Art Deco heritage meets contemporary glamour. Ocean breezes, palm-lined boulevards, and the rhythm of cosmopolitan living.',
+    'malibu': 'Where the Pacific meets the Santa Monica Mountains. Endless horizon, golden light, and the California dream, realized.',
+    'aspen': 'Alpine elegance at altitude. Where mountain grandeur meets cultivated refinement, and seasons paint the landscape in dramatic transformation.',
+    'st barts': 'French sophistication in Caribbean paradise. Yacht-dotted harbors, pristine beaches, and the art of living well, perfected.',
+    'monaco': 'Where the Alps descend into the Mediterranean. Principality of refinement, harbor of dreams, jewel of the Riviera.',
+    'dubai': 'Where desert meets sea, tradition meets innovation. A city that defies convention, a destination that exceeds expectation.',
+  };
+
+  return locationNarratives[city.toLowerCase()] ||
+    `Set in ${city}, where discerning travelers discover authentic luxury. A destination of distinction, a place of rare character.`;
+}
+
+
 export default function PropertyDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const router = useRouter();
   const { isMobile } = useResponsive();
+  const { searchState } = useSearchContext();
   const [rental, setRental] = useState<Rental | null>(null);
   const [gallery, setGallery] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<Error | null>(null);
-  const [showInquiry, setShowInquiry] = useState(false);
+  const [showInquiryForm, setShowInquiryForm] = useState(false);
+  const [showConfirmation, setShowConfirmation] = useState(false);
+  const [webhookWarning, setWebhookWarning] = useState(false);
+  const [showFloatingButton, setShowFloatingButton] = useState(false);
+  const [isSubmittingCharter, setIsSubmittingCharter] = useState(false);
+
+  // Fetch availability when rental is loaded
+  const {
+    blockedDates,
+    blockedRanges,
+    isLoading: isLoadingAvailability,
+    isDateBlocked,
+    isRangeAvailable,
+  } = useAvailability(rental?.slug || null);
+
+  const handleInquirySuccess = (hasWebhookWarning = false) => {
+    setShowInquiryForm(false);
+    setWebhookWarning(hasWebhookWarning);
+    setShowConfirmation(true);
+  };
+
+  const handleCloseConfirmation = () => {
+    setShowConfirmation(false);
+  };
 
   const handleHeaderCategorySelect = (category: 'villa' | 'yacht' | 'transport') => {
     // Navigate to homepage with category parameter
     router.push(`/?category=${category}`);
   };
+
+  // Set page title when rental loads
+  useEffect(() => {
+    if (rental && Platform.OS === 'web') {
+      const cleanTitle = rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '');
+      document.title = `${cleanTitle} | ERentals Exclusive`;
+    }
+    return () => {
+      if (Platform.OS === 'web') {
+        document.title = 'ERentals Exclusive';
+      }
+    };
+  }, [rental]);
 
   useEffect(() => {
     async function loadRental() {
@@ -68,6 +183,11 @@ export default function PropertyDetailScreen() {
 
         if (found) {
           setRental(found);
+
+          // Show floating button on mobile
+          if (typeof window !== 'undefined') {
+            setTimeout(() => setShowFloatingButton(true), 1000);
+          }
 
           // Fetch gallery images
           try {
@@ -88,8 +208,7 @@ export default function PropertyDetailScreen() {
 
             setGallery(images);
           } catch (galleryError) {
-            console.error('Failed to load gallery:', galleryError);
-            // Continue even if gallery fails
+            // Continue even if gallery fails - PropertyGallery handles empty/failed images
           }
         }
       } catch (err) {
@@ -103,12 +222,7 @@ export default function PropertyDetailScreen() {
   }, [id]);
 
   if (loading) {
-    return (
-      <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color={BrandColors.black} />
-        <Text style={styles.loadingText}>Loading luxury property...</Text>
-      </View>
-    );
+    return <PropertyPageSkeleton />;
   }
 
   if (error || !rental) {
@@ -129,132 +243,130 @@ export default function PropertyDetailScreen() {
   const locationParts = [rental.city?.name, rental.country?.name].filter(Boolean);
   const location = locationParts.join(', ');
 
+  // Determine category from property data or WordPress taxonomy
+  const rentalCategory = propertyData?.category || rental.category?.slug || rental.category?.name?.toLowerCase();
+
   return (
     <View style={styles.container}>
       <Header onHomePress={() => router.push('/')} onCategorySelect={handleHeaderCategorySelect} />
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         {/* Premium Gallery - Full Screen Images */}
-        {gallery.length > 0 && (
-          <View style={[styles.galleryContainer, isMobile && styles.galleryContainerMobile]}>
-            <PropertyGallery images={gallery} />
+        <View style={[styles.galleryContainer, isMobile && styles.galleryContainerMobile]}>
+          <PropertyGallery images={gallery} />
 
-            {/* Back Button Overlay */}
-            <Pressable style={styles.backButtonOverlay} onPress={() => router.back()}>
-              <View style={styles.backButtonCircle}>
-                <Feather name="arrow-left" size={20} color={BrandColors.black} />
-              </View>
-            </Pressable>
-          </View>
-        )}
+          {/* Back Button Overlay */}
+          <Pressable style={styles.backButtonOverlay} onPress={() => router.back()}>
+            <View style={styles.backButtonCircle}>
+              <Feather name="arrow-left" size={20} color={BrandColors.black} />
+            </View>
+          </Pressable>
+        </View>
 
-        {/* Content Container */}
-        <View style={[styles.content, isMobile && styles.contentMobile]}>
-          {/* Property Header */}
+        {/* Main Container - 2 Column Grid on Desktop */}
+        <View style={[styles.mainContainer, isMobile && styles.mainContainerMobile]}>
+
+          {/* Left Column - Content */}
+          <View style={[styles.contentColumn, isMobile && styles.contentColumnMobile]}>
+          {/* Property Header - Editorial Style */}
           <View style={styles.header}>
-            {rental.category && (
-              <Text style={styles.category}>{rental.category.name.toUpperCase()}</Text>
-            )}
+            <View style={styles.headerTop}>
+              {rental.category && (
+                <Text style={styles.category}>{rental.category.name}</Text>
+              )}
+              {location && (
+                <View style={styles.locationRowTop}>
+                  <Feather name="map-pin" size={14} color={BrandColors.gray.medium} />
+                  <Text style={styles.locationTop}>{location}</Text>
+                </View>
+              )}
+            </View>
+
             <Text style={[styles.title, isMobile && styles.titleMobile]}>
               {rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
             </Text>
-            {location && (
-              <View style={styles.locationRow}>
-                <Feather name="map-pin" size={18} color={BrandColors.secondary} />
-                <Text style={styles.location}>{location}</Text>
+
+            {/* Inline Specs - Editorial Minimal */}
+            {propertyData && (
+              <View style={styles.specsInline}>
+                {propertyData.guestMax && (
+                  <>
+                    <Text style={styles.specInlineText}>
+                      {propertyData.guestMax} {propertyData.guestMax === 1 ? 'Guest' : 'Guests'}
+                    </Text>
+                    {(propertyData.bedrooms || propertyData.bathrooms) && (
+                      <Text style={styles.specDivider}>·</Text>
+                    )}
+                  </>
+                )}
+                {propertyData.bedrooms && propertyData.category !== 'transport' && (
+                  <>
+                    <Text style={styles.specInlineText}>
+                      {propertyData.bedrooms} {propertyData.category === 'yacht' ? 'Cabins' : propertyData.bedrooms === 1 ? 'Bedroom' : 'Bedrooms'}
+                    </Text>
+                    {propertyData.bathrooms && (
+                      <Text style={styles.specDivider}>·</Text>
+                    )}
+                  </>
+                )}
+                {propertyData.bathrooms && propertyData.category !== 'transport' && (
+                  <Text style={styles.specInlineText}>
+                    {propertyData.bathrooms} {propertyData.bathrooms === 1 ? 'Bath' : 'Baths'}
+                  </Text>
+                )}
               </View>
             )}
           </View>
 
-          {/* Gold Divider */}
           <View style={styles.goldDivider} />
 
-          {/* Quick Specs */}
-          {propertyData && (
-            <View style={[styles.specsRow, isMobile && styles.specsRowMobile]}>
-              {propertyData.guestMax && (
-                <View style={styles.specCard}>
-                  <View style={styles.specIconCircle}>
-                    <Feather name="users" size={24} color={BrandColors.secondary} />
-                  </View>
-                  <Text style={styles.specValue}>{propertyData.guestMax}</Text>
-                  <Text style={styles.specLabel}>Guests</Text>
-                </View>
-              )}
-              {propertyData.bedrooms && propertyData.category !== 'transport' && (
-                <View style={styles.specCard}>
-                  <View style={styles.specIconCircle}>
-                    <Feather name="home" size={24} color={BrandColors.secondary} />
-                  </View>
-                  <Text style={styles.specValue}>{propertyData.bedrooms}</Text>
-                  <Text style={styles.specLabel}>
-                    {propertyData.category === 'yacht' ? 'Cabins' : 'Bedrooms'}
-                  </Text>
-                </View>
-              )}
-              {propertyData.bathrooms && propertyData.category !== 'transport' && (
-                <View style={styles.specCard}>
-                  <View style={styles.specIconCircle}>
-                    <Feather name="droplet" size={24} color={BrandColors.secondary} />
-                  </View>
-                  <Text style={styles.specValue}>{propertyData.bathrooms}</Text>
-                  <Text style={styles.specLabel}>Bathrooms</Text>
-                </View>
-              )}
-            </View>
-          )}
-
-          <View style={styles.goldDivider} />
-
-          {/* The Experience Section */}
+          {/* The Property */}
           <View style={styles.section}>
-            <Text style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>
-              The Experience
-            </Text>
             <Text style={[styles.description, isMobile && styles.descriptionMobile]}>
-              {propertyData?.overview || `Experience unparalleled luxury in this exclusive ${rental.category?.name.toLowerCase()} nestled in the heart of ${rental.city?.name}. Every detail has been meticulously curated to provide an extraordinary experience for the most discerning guests.`}
+              {propertyData?.overview || getEditorialDescription(rental)}
             </Text>
           </View>
 
-          {/* Pricing Card */}
-          {propertyData?.displayPrice && (
-            <View style={styles.pricingContainer}>
-              <View style={styles.pricingCard}>
-                <View style={styles.pricingContent}>
-                  <View>
-                    <Text style={styles.priceLabel}>Starting From</Text>
-                    <Text style={[styles.price, isMobile && styles.priceMobile]}>
-                      {propertyData.displayPrice.replace('From ', '')}
-                    </Text>
-                    {propertyData.minStayNights && (
-                      <Text style={styles.minStay}>
-                        Minimum {propertyData.minStayNights} night{propertyData.minStayNights > 1 ? 's' : ''}
-                      </Text>
-                    )}
+          <View style={styles.goldDivider} />
+
+          {/* Location */}
+          {location && (
+            <View style={styles.section}>
+              <Text style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>
+                Location
+              </Text>
+              <View style={[styles.locationCard, isMobile && styles.locationCardMobile]}>
+                <View style={[styles.locationHeader, isMobile && styles.locationHeaderMobile]}>
+                  <View style={styles.locationInfo}>
+                    <Text style={styles.locationCity}>{rental.city?.name}</Text>
+                    <Text style={styles.locationCountry}>{rental.country?.name}</Text>
                   </View>
                 </View>
+                <Text style={[styles.locationDescription, isMobile && styles.descriptionMobile]}>
+                  {getLocationCopy(rental.city?.name, rental.country?.name, rental.category?.name)}
+                </Text>
               </View>
             </View>
           )}
 
           <View style={styles.goldDivider} />
 
-          {/* Premium Amenities Grid */}
+          {/* Amenities - Editorial List */}
           {propertyData?.amenities && propertyData.amenities.length > 0 && (
             <View style={styles.section}>
               <Text style={[styles.sectionTitle, isMobile && styles.sectionTitleMobile]}>
-                Exclusive Amenities
+                Amenities
               </Text>
-              <View style={[styles.amenitiesGrid, isMobile && styles.amenitiesGridMobile]}>
+              <View style={styles.amenitiesList}>
                 {propertyData.amenities.map((amenity, index) => {
                   const IconComponent = getAmenityIcon(amenity);
                   return (
-                    <View key={index} style={styles.amenityCard}>
-                      <View style={styles.amenityIconContainer}>
+                    <View key={index} style={styles.amenityRow}>
+                      <View style={styles.amenityIcon}>
                         {IconComponent ? (
-                          <IconComponent size={32} color={BrandColors.secondary} />
+                          <IconComponent size={18} color={BrandColors.black} strokeWidth={1.8} />
                         ) : (
-                          <Feather name="check-circle" size={28} color={BrandColors.secondary} />
+                          <Feather name="check" size={16} color={BrandColors.black} />
                         )}
                       </View>
                       <Text style={styles.amenityText}>{amenity}</Text>
@@ -265,68 +377,143 @@ export default function PropertyDetailScreen() {
             </View>
           )}
 
-          <View style={styles.goldDivider} />
+          {/* Footer */}
+          <View style={styles.footer}>
+            <Text style={styles.footerText}>
+              {location} · Property {rental.id}
+            </Text>
+            <Text style={styles.footerCopyright}>
+              ERentals Exclusive © {new Date().getFullYear()}
+            </Text>
+          </View>
 
-          {/* Call to Action Section */}
-          {!showInquiry ? (
-            <View style={[styles.ctaSection, isMobile && styles.ctaSectionMobile]}>
-              <Text style={[styles.ctaTitle, isMobile && styles.ctaTitleMobile]}>
-                Ready for the Extraordinary?
-              </Text>
-              <Text style={styles.ctaSubtitle}>
-                Our dedicated concierge team is available 24/7 to craft your perfect luxury experience
-              </Text>
-              <View style={[styles.ctaButtons, isMobile && styles.ctaButtonsMobile]}>
-                <BrandButton
-                  title="Request Availability"
-                  variant="primary"
-                  onPress={() => setShowInquiry(true)}
-                  style={styles.ctaButton}
-                />
-                <Pressable
-                  style={styles.conciergeButton}
-                  onPress={() => setShowInquiry(true)}
-                >
-                  <Feather name="message-circle" size={20} color={BrandColors.secondary} />
-                  <Text style={styles.conciergeButtonText}>Contact Concierge</Text>
-                </Pressable>
-              </View>
-            </View>
-          ) : (
-            <View style={[styles.inquirySection, isMobile && styles.inquirySectionMobile]}>
-              <Text style={[styles.inquiryTitle, isMobile && styles.inquiryTitleMobile]}>Request Availability</Text>
-              <Text style={[styles.inquirySubtitle, isMobile && styles.inquirySubtitleMobile]}>
-                Contact our dedicated concierge team via WhatsApp
-              </Text>
-              <View style={styles.contactCard}>
-                <View style={styles.contactItem}>
-                  <Feather name="mail" size={22} color={BrandColors.secondary} />
-                  <Text style={styles.contactText}>info@erentalsexclusive.com</Text>
-                </View>
-                <View style={styles.contactItem}>
-                  <Feather name="message-circle" size={22} color={BrandColors.secondary} />
-                  <View>
-                    <Text style={styles.contactText}>+63 928 228 6597</Text>
-                    <Text style={styles.contactSubtext}>via WhatsApp</Text>
-                  </View>
-                </View>
-              </View>
-              <BrandButton
-                title="Close"
-                variant="outline"
-                onPress={() => setShowInquiry(false)}
+          </View>
+          {/* End Left Column */}
+
+          {/* Right Column - Booking Card (Desktop Only) */}
+          {!isMobile && (
+            <View style={styles.bookingColumn}>
+              <BookingCard
+                price={propertyData?.displayPrice}
+                minStay={propertyData?.minStayNights}
+                onInquire={() => setShowInquiryForm(true)}
+                blockedRanges={blockedRanges}
+                isLoadingAvailability={isLoadingAvailability}
               />
             </View>
           )}
 
-          {/* Footer */}
-          <View style={styles.footer}>
-            <View style={styles.footerDivider} />
-            <Text style={styles.footerText}>Property ID: {rental.id}</Text>
-            <Text style={styles.footerText}>{location}</Text>
-          </View>
         </View>
+        {/* End Main Container */}
+
       </ScrollView>
+
+      {/* Mobile Bottom Bar */}
+      {isMobile && (
+        <BookingBottomBar
+          price={propertyData?.displayPrice}
+          onInquire={() => setShowInquiryForm(true)}
+          hasAvailability={blockedRanges ? blockedRanges.length === 0 : undefined}
+          isLoadingAvailability={isLoadingAvailability}
+        />
+      )}
+
+      {/* Booking Inquiry Modal */}
+      <Modal
+        visible={showInquiryForm}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowInquiryForm(false)}
+      >
+        {/* Show Charter Form for yachts/transport, regular form for villas */}
+        {rentalCategory === 'yacht' || rentalCategory === 'transport' ? (
+          <View style={styles.charterModalContainer}>
+            <View style={styles.charterModalContent}>
+              <View style={styles.charterModalHeader}>
+                <Text style={styles.charterModalTitle}>
+                  {rentalCategory === 'yacht' ? 'Request Charter' : 'Request Booking'}
+                </Text>
+                <Pressable
+                  style={styles.charterModalClose}
+                  onPress={() => setShowInquiryForm(false)}
+                  hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+                >
+                  <Feather name="x" size={24} color={BrandColors.black} />
+                </Pressable>
+              </View>
+              <CharterBookingForm
+                propertyName={rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
+                propertyCategory={rentalCategory as 'yacht' | 'transport'}
+                displayPrice={propertyData?.displayPrice}
+                maxGuests={propertyData?.guestMax || 10}
+                isSubmitting={isSubmittingCharter}
+                onSubmit={async (data: CharterBookingData) => {
+                  setIsSubmittingCharter(true);
+                  try {
+                    const result = await submitCharterInquiry({
+                      propertyName: rental.title.replace(' – Preview', '').replace(' &#8211; Preview', ''),
+                      propertyCategory: rentalCategory as 'yacht' | 'transport',
+                      date: data.date.toISOString(),
+                      duration: data.duration,
+                      departureTime: data.departureTime,
+                      guests: data.guests,
+                      name: data.name,
+                      email: data.email,
+                      phone: data.phone,
+                      occasion: data.occasion,
+                      notes: data.notes,
+                      source: 'website-charter-form',
+                      attribution: searchState.attribution,
+                    });
+
+                    if (result.success) {
+                      handleInquirySuccess(false);
+                    } else {
+                      // Show success with warning - webhook may have failed
+                      console.warn('Charter submission result:', result);
+                      handleInquirySuccess(true);
+                    }
+                  } catch (error) {
+                    console.error('Charter submission error:', error);
+                    // Show success with warning to not block user experience
+                    handleInquirySuccess(true);
+                  } finally {
+                    setIsSubmittingCharter(false);
+                  }
+                }}
+              />
+            </View>
+          </View>
+        ) : (
+          <BookingInquiryForm
+            propertyName={rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
+            propertyId={rental.id}
+            price={propertyData?.displayPrice}
+            checkIn={searchState.checkIn}
+            checkOut={searchState.checkOut}
+            guests={searchState.guests}
+            minStayNights={propertyData?.minStayNights || undefined}
+            blockedDates={blockedDates}
+            attribution={searchState.attribution}
+            onClose={() => setShowInquiryForm(false)}
+            onSuccess={handleInquirySuccess}
+          />
+        )}
+      </Modal>
+
+      {/* Confirmation Modal */}
+      <Modal
+        visible={showConfirmation}
+        transparent
+        animationType="fade"
+        onRequestClose={handleCloseConfirmation}
+      >
+        <BookingConfirmation
+          propertyName={rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
+          onClose={handleCloseConfirmation}
+          webhookWarning={webhookWarning}
+        />
+      </Modal>
     </View>
   );
 }
@@ -344,24 +531,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: BrandColors.white,
-    padding: Spacing.xxl,
-  },
-  loadingText: {
-    marginTop: Spacing.lg,
-    fontSize: 16,
-    color: BrandColors.gray.medium,
-    fontStyle: 'italic',
+    padding: Space[12],
   },
   errorTitle: {
-    fontSize: 24,
-    fontWeight: '700',
+    fontSize: FontSize['2xl'],
+    lineHeight: LineHeight['2xl'],
+    fontWeight: FontWeight.bold,
     color: BrandColors.black,
-    marginBottom: Spacing.sm,
+    marginBottom: Space[2],
   },
   errorText: {
-    fontSize: 16,
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
     color: BrandColors.gray.medium,
-    marginBottom: Spacing.xl,
+    marginBottom: Space[8],
   },
   galleryContainer: {
     width: '100%',
@@ -373,350 +556,352 @@ const styles = StyleSheet.create({
   backButtonOverlay: {
     position: 'absolute',
     top: Platform.select({ web: 80, default: 20 }),
-    left: Spacing.lg,
-    zIndex: 100,
+    left: Space[6],
+    zIndex: ZIndex.dropdown,
   },
   backButtonCircle: {
-    width: 44,
-    height: 44,
-    borderRadius: 22,
+    width: TouchTarget.min,
+    height: TouchTarget.min,
+    borderRadius: Radius.full,
     backgroundColor: 'rgba(255, 255, 255, 0.95)',
     alignItems: 'center',
     justifyContent: 'center',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.15,
-    shadowRadius: 8,
-    elevation: 4,
+    ...Shadow.base,
   },
-  content: {
-    maxWidth: 1000,
+  mainContainer: {
+    maxWidth: Container.listing,
     alignSelf: 'center',
     width: '100%',
-    paddingHorizontal: Spacing.xxl * 2.5,
-    paddingTop: Spacing.xxl * 2.5,
-    paddingBottom: 120,
+    paddingHorizontal: Space[6],
+    paddingTop: Space[8],
+    paddingBottom: Space[12],
+    ...Platform.select({
+      web: {
+        flexDirection: 'row',
+        gap: Space[12],
+        alignItems: 'flex-start',
+      },
+    }),
   },
-  contentMobile: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.xxl,
-    paddingBottom: 100,
+  mainContainerMobile: {
+    flexDirection: 'column',
+    paddingHorizontal: Space[4],
+    paddingTop: Space[4],
+    paddingBottom: Space[8],
+  },
+  contentColumn: {
+    flex: 1,
+    maxWidth: Platform.select({ web: 720, default: '100%' }) as any,
+  },
+  contentColumnMobile: {
+    maxWidth: '100%',
+  },
+  bookingColumn: {
+    width: 380,
+    flexShrink: 0,
   },
   header: {
-    marginBottom: Spacing.xxl,
+    marginBottom: Space[6],
   },
-  category: {
-    fontSize: 13,
-    fontWeight: '700',
-    color: BrandColors.secondary,
-    letterSpacing: 2.5,
-    marginBottom: Spacing.md,
-  },
-  title: {
-    fontSize: 52,
-    fontWeight: '700',
-    color: BrandColors.black,
-    marginBottom: Spacing.md,
-    lineHeight: 62,
-    letterSpacing: -1.5,
-  },
-  titleMobile: {
-    fontSize: 36,
-    lineHeight: 44,
-    letterSpacing: -1,
-  },
-  locationRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-  },
-  location: {
-    fontSize: 18,
-    color: BrandColors.gray.dark,
-    fontWeight: '500',
-  },
-  goldDivider: {
-    height: 2,
-    width: 80,
-    backgroundColor: BrandColors.secondary,
-    marginVertical: Spacing.xxl * 1.5,
-  },
-  specsRow: {
-    flexDirection: 'row',
-    gap: Spacing.xl,
-    marginBottom: Spacing.xl,
-  },
-  specsRowMobile: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    gap: Spacing.md,
-  },
-  specCard: {
-    flex: 1,
-    alignItems: 'center',
-    padding: Spacing.lg,
-    backgroundColor: BrandColors.white,
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: BrandColors.gray.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.05,
-    shadowRadius: 8,
-    elevation: 2,
-  },
-  specIconCircle: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: `${BrandColors.secondary}12`,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginBottom: Spacing.md,
-  },
-  specValue: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: BrandColors.black,
-    marginBottom: Spacing.xs,
-  },
-  specLabel: {
-    fontSize: 13,
-    color: BrandColors.gray.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-    fontWeight: '600',
-  },
-  section: {
-    marginBottom: Spacing.xxl * 1.5,
-  },
-  sectionTitle: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: BrandColors.black,
-    marginBottom: Spacing.lg,
-    letterSpacing: -0.8,
-  },
-  sectionTitleMobile: {
-    fontSize: 26,
-  },
-  description: {
-    fontSize: 18,
-    lineHeight: 34,
-    color: BrandColors.gray.dark,
-    letterSpacing: 0.3,
-  },
-  descriptionMobile: {
-    fontSize: 17,
-    lineHeight: 30,
-  },
-  pricingContainer: {
-    marginBottom: Spacing.xxl,
-  },
-  pricingCard: {
-    backgroundColor: BrandColors.white,
-    padding: Spacing.xxl,
-    borderRadius: 20,
-    borderWidth: 2,
-    borderColor: BrandColors.secondary,
-    shadowColor: BrandColors.secondary,
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.15,
-    shadowRadius: 12,
-    elevation: 4,
-  },
-  pricingContent: {
+  headerTop: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+    marginBottom: Space[4],
   },
-  priceLabel: {
-    fontSize: 14,
-    color: BrandColors.gray.medium,
-    textTransform: 'uppercase',
-    letterSpacing: 1.5,
-    marginBottom: Spacing.sm,
-    fontWeight: '600',
-  },
-  price: {
-    fontSize: 42,
-    fontWeight: '700',
+  category: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
-    marginBottom: Spacing.xs,
-    letterSpacing: -1,
+    letterSpacing: 1.5,
+    textTransform: 'uppercase',
   },
-  priceMobile: {
-    fontSize: 32,
-  },
-  minStay: {
-    fontSize: 15,
-    color: BrandColors.gray.dark,
-  },
-  amenitiesGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.lg,
-  },
-  amenitiesGridMobile: {
-    gap: Spacing.md,
-  },
-  amenityCard: {
+  locationRowTop: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
-    width: Platform.OS === 'web' ? 'calc(50% - 12px)' : '100%',
-    padding: Spacing.lg,
-    backgroundColor: BrandColors.white,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: BrandColors.gray.border,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 4,
-    elevation: 1,
+    gap: Space[2],
   },
-  amenityIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    backgroundColor: `${BrandColors.secondary}12`,
+  locationTop: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    color: BrandColors.gray.medium,
+    fontWeight: FontWeight.medium,
+  },
+  title: {
+    fontSize: FontSize['6xl'],
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+    marginBottom: Space[6],
+    lineHeight: LineHeight['6xl'],
+    letterSpacing: -1.2,
+  },
+  titleMobile: {
+    fontSize: FontSize['4xl'],
+    lineHeight: LineHeight['4xl'],
+    letterSpacing: -0.8,
+  },
+  specsInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+  },
+  specInlineText: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    color: BrandColors.gray.dark,
+    fontWeight: FontWeight.normal,
+    letterSpacing: 0.2,
+  },
+  specDivider: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    color: BrandColors.gray.medium,
+    marginHorizontal: Space[2],
+  },
+  goldDivider: {
+    height: 1,
+    width: 60,
+    backgroundColor: BrandColors.gray.border,
+    marginVertical: Space[6], // Reduced from Space[10]
+  },
+  section: {
+    marginBottom: Space[6], // Reduced from Space[12]
+  },
+  sectionTitle: {
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.xl,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+    marginBottom: Space[4], // Reduced from Space[6]
+    letterSpacing: -0.3,
+  },
+  sectionTitleMobile: {
+    fontSize: FontSize.lg,
+    lineHeight: LineHeight.lg,
+  },
+  description: {
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md * 2,
+    color: BrandColors.gray.dark,
+    letterSpacing: 0.1,
+    fontWeight: FontWeight.normal,
+  },
+  descriptionMobile: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base + 4,
+  },
+  amenitiesList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space[4],
+    marginTop: Space[4],
+  },
+  amenityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[3],
+    width: Platform.select({
+      web: 'calc(33.333% - 11px)',
+      default: 'calc(50% - 8px)'
+    }) as any,
+    paddingVertical: Space[3],
+    paddingHorizontal: Space[4],
+    backgroundColor: BrandColors.gray.light,
+    borderRadius: Radius.md,
+    minHeight: TouchTarget.min,
+  },
+  amenityIcon: {
+    width: 20,
+    height: 20,
     alignItems: 'center',
     justifyContent: 'center',
   },
   amenityText: {
-    fontSize: 16,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.black,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
     flex: 1,
   },
   ctaSection: {
-    backgroundColor: BrandColors.gray.light,
-    padding: Spacing.xxl * 2,
-    borderRadius: 20,
+    backgroundColor: BrandColors.black,
+    paddingVertical: Space[20],
+    paddingHorizontal: Space[20],
+    borderRadius: Radius.sm,
     alignItems: 'center',
-    marginBottom: Spacing.xxl,
-    borderWidth: 2,
-    borderColor: BrandColors.secondary,
+    marginBottom: Space[12],
   },
   ctaSectionMobile: {
-    padding: Spacing.xl,
+    paddingVertical: Space[16],
+    paddingHorizontal: Space[8],
   },
   ctaTitle: {
-    fontSize: 36,
-    fontWeight: '700',
-    color: BrandColors.black,
+    fontSize: FontSize['2xl'],
+    lineHeight: LineHeight['2xl'],
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.white,
     textAlign: 'center',
-    marginBottom: Spacing.md,
-    letterSpacing: -1,
+    marginBottom: Space[6],
+    letterSpacing: -0.5,
   },
   ctaTitleMobile: {
-    fontSize: 26,
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.xl,
   },
   ctaSubtitle: {
-    fontSize: 17,
-    color: BrandColors.gray.dark,
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base + 2,
+    color: BrandColors.gray.light,
     textAlign: 'center',
-    marginBottom: Spacing.xxl,
-    maxWidth: 600,
-    lineHeight: 28,
+    marginBottom: Space[12],
+    maxWidth: 500,
+    fontWeight: FontWeight.normal,
   },
   ctaButtons: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    justifyContent: 'center',
     width: '100%',
-    maxWidth: 600,
+    maxWidth: 400,
   },
   ctaButtonsMobile: {
-    flexDirection: 'column',
+    maxWidth: '100%',
   },
-  ctaButton: {
-    flex: 1,
-  },
-  conciergeButton: {
-    flex: 1,
-    flexDirection: 'row',
+  ctaButtonPrimary: {
+    backgroundColor: BrandColors.white,
+    paddingVertical: Space[5],
+    paddingHorizontal: Space[16],
+    borderRadius: Radius.none,
+    minWidth: 200,
+    minHeight: TouchTarget.min,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: BrandColors.white,
-    borderWidth: 2,
-    borderColor: BrandColors.secondary,
-    paddingVertical: Spacing.md + 2,
-    paddingHorizontal: Spacing.xl,
-    borderRadius: 8,
-    gap: Spacing.sm,
   },
-  conciergeButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: BrandColors.secondary,
-  },
-  inquirySection: {
-    backgroundColor: BrandColors.gray.light,
-    padding: Spacing.xxl * 1.5,
-    borderRadius: 20,
-    marginBottom: Spacing.xxl,
-    borderWidth: 1,
-    borderColor: BrandColors.gray.border,
-  },
-  inquirySectionMobile: {
-    padding: Spacing.xl,
-  },
-  inquiryTitle: {
-    fontSize: 28,
-    fontWeight: '700',
+  ctaButtonPrimaryText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
-    marginBottom: Spacing.sm,
-    letterSpacing: -0.5,
-  },
-  inquiryTitleMobile: {
-    fontSize: 22,
-  },
-  inquirySubtitle: {
-    fontSize: 16,
-    color: BrandColors.gray.dark,
-    marginBottom: Spacing.xl,
-    lineHeight: 26,
-  },
-  inquirySubtitleMobile: {
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  contactCard: {
-    backgroundColor: BrandColors.white,
-    padding: Spacing.xl,
-    borderRadius: 16,
-    marginBottom: Spacing.xl,
-    gap: Spacing.lg,
-  },
-  contactItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.md,
-  },
-  contactText: {
-    fontSize: 16,
-    color: BrandColors.black,
-    fontWeight: '500',
-  },
-  contactSubtext: {
-    fontSize: 13,
-    color: BrandColors.gray.medium,
-    marginTop: 2,
+    letterSpacing: 0.5,
+    textTransform: 'uppercase',
   },
   footer: {
-    paddingTop: Spacing.xxl * 1.5,
+    paddingTop: Space[8],
+    paddingBottom: Space[6],
     alignItems: 'center',
-  },
-  footerDivider: {
-    height: 1,
-    width: 80,
-    backgroundColor: BrandColors.gray.border,
-    marginBottom: Spacing.lg,
+    gap: Space[2],
   },
   footerText: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.gray.medium,
-    marginBottom: Spacing.xs,
+    fontWeight: FontWeight.normal,
+    letterSpacing: 0.2,
+  },
+  footerCopyright: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    color: BrandColors.gray.medium,
+    fontWeight: FontWeight.normal,
+    letterSpacing: 0.5,
+  },
+  floatingButton: {
+    position: 'fixed',
+    bottom: 90,
+    right: Space[6],
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[2],
+    backgroundColor: BrandColors.black,
+    paddingVertical: Space[4],
+    paddingHorizontal: Space[6],
+    borderRadius: Radius.full,
+    zIndex: ZIndex.overlay - 2,
+    ...Shadow.lg,
+  },
+  floatingButtonText: {
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.white,
+  },
+  locationCard: {
+    backgroundColor: 'transparent',
+    paddingVertical: Space[6],
+  },
+  locationCardMobile: {
+    paddingVertical: Space[4],
+  },
+  locationHeader: {
+    marginBottom: Space[6],
+  },
+  locationHeaderMobile: {
+    marginBottom: Space[4],
+  },
+  locationIconCircle: {
+    display: 'none',
+  },
+  locationInfo: {
+    flex: 1,
+  },
+  locationCity: {
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+    marginBottom: Space[1],
+    letterSpacing: -0.2,
+  },
+  locationCountry: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    color: BrandColors.gray.medium,
+    fontWeight: FontWeight.normal,
+  },
+  locationDescription: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base + 4,
+    color: BrandColors.gray.dark,
+    fontWeight: FontWeight.normal,
+  },
+
+  // Charter Modal Styles
+  charterModalContainer: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: Space[4],
+  },
+  charterModalContent: {
+    backgroundColor: BrandColors.white,
+    borderRadius: Radius.xl,
+    width: '100%',
+    maxWidth: 520,
+    maxHeight: '90%',
+    overflow: 'hidden',
+    ...Shadow.xl,
+  },
+  charterModalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: Space[6],
+    paddingVertical: Space[4],
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.gray.border,
+  },
+  charterModalTitle: {
+    fontSize: FontSize.xl,
+    lineHeight: LineHeight.xl,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+  },
+  charterModalClose: {
+    width: TouchTarget.min,
+    height: TouchTarget.min,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.full,
   },
 });

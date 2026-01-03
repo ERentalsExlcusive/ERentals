@@ -45,9 +45,20 @@ function transformRental(raw: RentalAssetRaw): Rental {
     ? featuredMediaRaw
     : null;
 
-  // Find taxonomy terms from embedded data
-  const findTerm = (taxonomyIndex: number): TaxonomyTerm | null => {
-    const termArray = terms[taxonomyIndex];
+  // Find taxonomy terms by taxonomy name (more robust than array index)
+  const findTermByTaxonomy = (taxonomyName: string): TaxonomyTerm | null => {
+    for (const termGroup of terms) {
+      if (termGroup && termGroup.length > 0) {
+        const found = termGroup.find((t: any) => t.taxonomy === taxonomyName);
+        if (found) return found;
+      }
+    }
+    return null;
+  };
+
+  // Fallback to index-based lookup for city/country (they're consistent)
+  const findTermByIndex = (index: number): TaxonomyTerm | null => {
+    const termArray = terms[index];
     return termArray?.[0] || null;
   };
 
@@ -75,11 +86,11 @@ function transformRental(raw: RentalAssetRaw): Rental {
           },
         }
       : null,
-    // Term order in _embedded: 0=city, 1=country, 2=rental_category, 3=rental_status
-    city: findTerm(0),
-    country: findTerm(1),
-    category: findTerm(2),
-    status: findTerm(3),
+    // Use index for city/country (consistent), taxonomy name for category/status (varies)
+    city: findTermByIndex(0),
+    country: findTermByIndex(1),
+    category: findTermByTaxonomy('rental_category'),
+    status: findTermByTaxonomy('rental_status'),
     acf: raw.acf,
   };
 }
@@ -277,4 +288,209 @@ export async function getRentalGallery(rentalId: number): Promise<GalleryImage[]
       full: img.source_url,
     },
   }));
+}
+
+
+// ============================================================================
+// GoHighLevel Webhook Integration
+// ============================================================================
+
+// GHL Webhook URL - Configure this with your actual webhook endpoint
+const GHL_WEBHOOK_URL = 'https://services.leadconnectorhq.com/hooks/ERentalsExclusive/booking';
+
+/**
+ * UTM Attribution for lead tracking
+ */
+export interface Attribution {
+  utm_source?: string;
+  utm_medium?: string;
+  utm_campaign?: string;
+  utm_content?: string;
+  utm_term?: string;
+  er_id?: string;
+  creator_id?: string;
+}
+
+/**
+ * Villa/Property Booking Inquiry Data
+ */
+export interface BookingInquiryData {
+  propertyName: string;
+  propertyId: number;
+  checkIn: string;
+  checkOut: string;
+  guests: number;
+  name: string;
+  email: string;
+  phone: string;
+  message?: string;
+  source?: string;
+  attribution?: Attribution;
+}
+
+/**
+ * Charter Booking Inquiry Data (Yacht/Transport)
+ */
+export interface CharterInquiryData {
+  propertyName: string;
+  propertyCategory: 'yacht' | 'transport';
+  date: string;
+  duration: string;
+  departureTime: string;
+  guests: number;
+  name: string;
+  email: string;
+  phone: string;
+  occasion?: string;
+  notes?: string;
+  source?: string;
+  attribution?: Attribution;
+}
+
+/**
+ * Webhook Response
+ */
+export interface WebhookResponse {
+  success: boolean;
+  message?: string;
+  leadId?: string;
+}
+
+/**
+ * Submit a villa/property booking inquiry to GoHighLevel
+ */
+export async function submitBookingInquiry(data: BookingInquiryData): Promise<WebhookResponse> {
+  try {
+    const payload = {
+      // Contact info
+      firstName: data.name.split(' ')[0],
+      lastName: data.name.split(' ').slice(1).join(' ') || '',
+      email: data.email,
+      phone: data.phone,
+
+      // Custom fields for GHL
+      customField: {
+        property_name: data.propertyName,
+        property_id: String(data.propertyId),
+        check_in: data.checkIn,
+        check_out: data.checkOut,
+        guests: String(data.guests),
+        message: data.message || '',
+        booking_type: 'villa',
+        source: data.source || 'website',
+        submitted_at: new Date().toISOString(),
+        // UTM Attribution
+        utm_source: data.attribution?.utm_source || '',
+        utm_medium: data.attribution?.utm_medium || '',
+        utm_campaign: data.attribution?.utm_campaign || '',
+        utm_content: data.attribution?.utm_content || '',
+        utm_term: data.attribution?.utm_term || '',
+        er_id: data.attribution?.er_id || '',
+        creator_id: data.attribution?.creator_id || '',
+      },
+
+      // Tags for segmentation
+      tags: [
+        'website-lead',
+        'villa-inquiry',
+        'booking-request',
+        data.attribution?.utm_source ? `source-${data.attribution.utm_source}` : null,
+        data.attribution?.creator_id ? `creator-${data.attribution.creator_id}` : null,
+      ].filter(Boolean),
+    };
+
+    const response = await fetch(GHL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('GHL webhook error:', response.status, await response.text());
+      return { success: false, message: 'Failed to submit inquiry' };
+    }
+
+    const result = await response.json().catch(() => ({}));
+    return {
+      success: true,
+      message: 'Inquiry submitted successfully',
+      leadId: result.contactId || result.id,
+    };
+  } catch (error) {
+    console.error('GHL webhook error:', error);
+    return { success: false, message: 'Network error - please try again' };
+  }
+}
+
+/**
+ * Submit a charter booking inquiry to GoHighLevel (Yacht/Transport)
+ */
+export async function submitCharterInquiry(data: CharterInquiryData): Promise<WebhookResponse> {
+  try {
+    const payload = {
+      // Contact info
+      firstName: data.name.split(' ')[0],
+      lastName: data.name.split(' ').slice(1).join(' ') || '',
+      email: data.email,
+      phone: data.phone,
+
+      // Custom fields for GHL
+      customField: {
+        property_name: data.propertyName,
+        property_category: data.propertyCategory,
+        charter_date: data.date,
+        charter_duration: data.duration,
+        departure_time: data.departureTime,
+        guests: String(data.guests),
+        occasion: data.occasion || '',
+        special_requests: data.notes || '',
+        booking_type: data.propertyCategory,
+        source: data.source || 'website',
+        submitted_at: new Date().toISOString(),
+        // UTM Attribution
+        utm_source: data.attribution?.utm_source || '',
+        utm_medium: data.attribution?.utm_medium || '',
+        utm_campaign: data.attribution?.utm_campaign || '',
+        utm_content: data.attribution?.utm_content || '',
+        utm_term: data.attribution?.utm_term || '',
+        er_id: data.attribution?.er_id || '',
+        creator_id: data.attribution?.creator_id || '',
+      },
+
+      // Tags for segmentation
+      tags: [
+        'website-lead',
+        `${data.propertyCategory}-inquiry`,
+        'charter-request',
+        data.occasion ? `occasion-${data.occasion}` : null,
+        data.attribution?.utm_source ? `source-${data.attribution.utm_source}` : null,
+        data.attribution?.creator_id ? `creator-${data.attribution.creator_id}` : null,
+      ].filter(Boolean),
+    };
+
+    const response = await fetch(GHL_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(payload),
+    });
+
+    if (!response.ok) {
+      console.error('GHL webhook error:', response.status, await response.text());
+      return { success: false, message: 'Failed to submit inquiry' };
+    }
+
+    const result = await response.json().catch(() => ({}));
+    return {
+      success: true,
+      message: 'Charter inquiry submitted successfully',
+      leadId: result.contactId || result.id,
+    };
+  } catch (error) {
+    console.error('GHL webhook error:', error);
+    return { success: false, message: 'Network error - please try again' };
+  }
 }

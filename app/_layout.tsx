@@ -12,10 +12,39 @@ import {
   DMSerifDisplay_400Regular,
 } from '@expo-google-fonts/dm-serif-display';
 import { useEffect } from 'react';
+import { Platform } from 'react-native';
 import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BrandColors } from '@/constants/theme';
+import { SearchProvider } from '@/context/search-context';
+
+// Inject global CSS for web focus states (guard against multiple injections)
+if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('erentals-focus-styles')) {
+  const style = document.createElement('style');
+  style.id = 'erentals-focus-styles';
+  style.textContent = `
+    /* Gold focus rings instead of browser default blue */
+    *:focus {
+      outline: none;
+    }
+    *:focus-visible {
+      outline: 2px solid ${BrandColors.secondary};
+      outline-offset: 2px;
+    }
+    /* Specific input focus styles */
+    input:focus, textarea:focus, select:focus, button:focus-visible {
+      outline: 2px solid ${BrandColors.secondary};
+      outline-offset: 2px;
+      box-shadow: 0 0 0 4px rgba(188, 148, 77, 0.15);
+    }
+    /* Remove default tap highlight on mobile */
+    * {
+      -webkit-tap-highlight-color: transparent;
+    }
+  `;
+  document.head.appendChild(style);
+}
 
 // Prevent splash screen from auto-hiding
 SplashScreen.preventAutoHideAsync();
@@ -68,12 +97,14 @@ export default function RootLayout() {
   };
 
   return (
-    <ThemeProvider value={colorScheme === 'dark' ? DarkBrandTheme : LightTheme}>
-      <Stack>
-        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-        <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-      </Stack>
-      <StatusBar style="light" translucent backgroundColor="transparent" />
-    </ThemeProvider>
+    <SearchProvider>
+      <ThemeProvider value={colorScheme === 'dark' ? DarkBrandTheme : LightTheme}>
+        <Stack>
+          <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+          <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+        </Stack>
+        <StatusBar style="light" translucent backgroundColor="transparent" />
+      </ThemeProvider>
+    </SearchProvider>
   );
 }

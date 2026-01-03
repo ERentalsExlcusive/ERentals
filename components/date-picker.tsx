@@ -1,6 +1,7 @@
-import { View, Text, StyleSheet, Pressable, ScrollView, Platform } from 'react-native';
-import { useState, useMemo } from 'react';
-import { BrandColors, Spacing } from '@/constants/theme';
+import { View, Text, StyleSheet, Pressable, Platform, TouchableOpacity } from 'react-native';
+import { useState, useMemo, useCallback } from 'react';
+import { BrandColors } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow, TouchTarget } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
 
 interface DatePickerProps {
@@ -8,6 +9,9 @@ interface DatePickerProps {
   endDate?: Date;
   onDatesChange: (startDate: Date | null, endDate: Date | null) => void;
   minDate?: Date;
+  minNights?: number; // Minimum stay requirement
+  blockedDates?: Set<string>; // Set of YYYY-MM-DD strings
+  isLoadingAvailability?: boolean;
 }
 
 interface DayCell {
@@ -15,12 +19,31 @@ interface DayCell {
   isCurrentMonth: boolean;
   isToday: boolean;
   isDisabled: boolean;
+  isBlocked: boolean;
 }
 
-export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DatePickerProps) {
+export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNights = 1, blockedDates, isLoadingAvailability }: DatePickerProps) {
   const { isMobile } = useResponsive();
-  const [currentMonth, setCurrentMonth] = useState(new Date());
-  const [selectingStart, setSelectingStart] = useState(true);
+  // Initialize currentMonth to startDate's month if provided, otherwise current month
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    if (startDate) return new Date(startDate.getFullYear(), startDate.getMonth(), 1);
+    return new Date();
+  });
+  // If both dates exist, user is editing - start in "select end" mode so clicking updates checkout
+  // If only startDate exists, continue selecting end date
+  // If no dates, start fresh with selecting start
+  const [selectingStart, setSelectingStart] = useState(() => {
+    if (startDate && endDate) return false; // Both exist: next click updates end date
+    if (startDate && !endDate) return false; // Only start: continue to end
+    return true; // No dates: select start
+  });
+
+  // Helper to check if a date is blocked
+  const isDateBlocked = (date: Date): boolean => {
+    if (!blockedDates) return false;
+    const dateStr = date.toISOString().split('T')[0];
+    return blockedDates.has(dateStr);
+  };
 
   const monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
     'July', 'August', 'September', 'October', 'November', 'December'];
@@ -47,11 +70,13 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
     const prevMonthLastDay = new Date(year, month, 0).getDate();
     for (let i = startDay - 1; i >= 0; i--) {
       const date = new Date(year, month - 1, prevMonthLastDay - i);
+      const blocked = isDateBlocked(date);
       days.push({
         date,
         isCurrentMonth: false,
         isToday: false,
-        isDisabled: minDate ? date < minDate : false,
+        isDisabled: (minDate ? date < minDate : false) || blocked,
+        isBlocked: blocked,
       });
     }
 
@@ -59,12 +84,14 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
     for (let day = 1; day <= daysInMonth; day++) {
       const date = new Date(year, month, day);
       date.setHours(0, 0, 0, 0);
+      const blocked = isDateBlocked(date);
 
       days.push({
         date,
         isCurrentMonth: true,
         isToday: date.getTime() === today.getTime(),
-        isDisabled: minDate ? date < minDate : false,
+        isDisabled: (minDate ? date < minDate : false) || blocked,
+        isBlocked: blocked,
       });
     }
 
@@ -72,18 +99,48 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
     const remainingDays = 42 - days.length;
     for (let day = 1; day <= remainingDays; day++) {
       const date = new Date(year, month + 1, day);
+      const blocked = isDateBlocked(date);
       days.push({
         date,
         isCurrentMonth: false,
         isToday: false,
-        isDisabled: minDate ? date < minDate : false,
+        isDisabled: (minDate ? date < minDate : false) || blocked,
+        isBlocked: blocked,
       });
     }
 
     return days;
-  }, [currentMonth, minDate]);
+  }, [currentMonth, minDate, blockedDates]);
 
-  const handleDayPress = (dayCell: DayCell) => {
+  // Helper to check if any date in a range is blocked
+  const hasBlockedDateInRange = useCallback((start: Date, end: Date): boolean => {
+    if (!blockedDates || blockedDates.size === 0) return false;
+    const current = new Date(start);
+    current.setHours(0, 0, 0, 0);
+    const endTime = end.getTime();
+    while (current.getTime() <= endTime) {
+      if (isDateBlocked(current)) return true;
+      current.setDate(current.getDate() + 1);
+    }
+    return false;
+  }, [blockedDates]);
+
+  // Find the next available end date starting from a given date
+  const findNextAvailableEnd = useCallback((start: Date, minNightsRequired: number): Date => {
+    const candidate = new Date(start);
+    candidate.setDate(candidate.getDate() + minNightsRequired);
+
+    // Check if any date in range is blocked - if so, extend past the blocked period
+    let attempts = 0;
+    const maxAttempts = 365; // Prevent infinite loop
+    while (hasBlockedDateInRange(start, candidate) && attempts < maxAttempts) {
+      candidate.setDate(candidate.getDate() + 1);
+      attempts++;
+    }
+    return candidate;
+  }, [hasBlockedDateInRange]);
+
+  const handleDayPress = useCallback((dayCell: DayCell) => {
     if (dayCell.isDisabled) return;
 
     if (selectingStart || !startDate) {
@@ -92,15 +149,32 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
       setSelectingStart(false);
     } else {
       // Selecting end date
-      if (dayCell.date < startDate) {
+      let selectedEnd = dayCell.date;
+      let selectedStart = startDate;
+
+      if (selectedEnd < selectedStart) {
         // If end date is before start, swap them
-        onDatesChange(dayCell.date, startDate);
+        [selectedStart, selectedEnd] = [selectedEnd, selectedStart];
+      }
+
+      // Calculate nights
+      const nights = Math.round((selectedEnd.getTime() - selectedStart.getTime()) / (1000 * 60 * 60 * 24));
+
+      // Check if range contains blocked dates
+      if (hasBlockedDateInRange(selectedStart, selectedEnd)) {
+        // Range contains blocked dates - find next available end
+        const availableEnd = findNextAvailableEnd(selectedStart, Math.max(nights, minNights));
+        onDatesChange(selectedStart, availableEnd);
+      } else if (nights < minNights) {
+        // Enforce minimum nights - extend checkout
+        const extendedEnd = findNextAvailableEnd(selectedStart, minNights);
+        onDatesChange(selectedStart, extendedEnd);
       } else {
-        onDatesChange(startDate, dayCell.date);
+        onDatesChange(selectedStart, selectedEnd);
       }
       setSelectingStart(true);
     }
-  };
+  }, [selectingStart, startDate, onDatesChange, minNights, hasBlockedDateInRange, findNextAvailableEnd]);
 
   const isDateInRange = (date: Date): boolean => {
     if (!startDate || !endDate) return false;
@@ -136,7 +210,11 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
     <View style={[styles.container, isMobile && styles.containerMobile]}>
       {/* Month Navigation */}
       <View style={styles.header}>
-        <Pressable onPress={previousMonth} style={styles.navButton}>
+        <Pressable
+          onPress={previousMonth}
+          style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
           <Text style={styles.navText}>‹</Text>
         </Pressable>
 
@@ -144,7 +222,11 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
           {monthNames[currentMonth.getMonth()]} {currentMonth.getFullYear()}
         </Text>
 
-        <Pressable onPress={nextMonth} style={styles.navButton}>
+        <Pressable
+          onPress={nextMonth}
+          style={({ pressed }) => [styles.navButton, pressed && styles.navButtonPressed]}
+          hitSlop={{ top: 8, right: 8, bottom: 8, left: 8 }}
+        >
           <Text style={styles.navText}>›</Text>
         </Pressable>
       </View>
@@ -158,19 +240,24 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
         ))}
       </View>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid - Using TouchableOpacity for reliable web clicks */}
       <View style={styles.calendarGrid}>
         {calendarDays.map((dayCell, index) => {
           const selected = isDateSelected(dayCell.date);
           const inRange = isDateInRange(dayCell.date);
 
           return (
-            <Pressable
+            <TouchableOpacity
               key={index}
-              onPress={() => handleDayPress(dayCell)}
-              disabled={dayCell.isDisabled}
+              onPress={() => {
+                if (!dayCell.isDisabled) {
+                  handleDayPress(dayCell);
+                }
+              }}
+              activeOpacity={dayCell.isDisabled ? 1 : 0.7}
               style={[
                 styles.dayCell,
+                isMobile && styles.dayCellMobile,
                 !dayCell.isCurrentMonth && styles.dayCellOtherMonth,
                 selected === 'start' && styles.dayCellStart,
                 selected === 'end' && styles.dayCellEnd,
@@ -178,20 +265,26 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
                 inRange && !selected && styles.dayCellInRange,
                 dayCell.isDisabled && styles.dayCellDisabled,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={`${dayCell.date.toLocaleDateString()}`}
             >
-              <Text
-                style={[
-                  styles.dayText,
-                  isMobile && styles.dayTextMobile,
-                  !dayCell.isCurrentMonth && styles.dayTextOtherMonth,
-                  (selected === 'start' || selected === 'end') && styles.dayTextSelected,
-                  dayCell.isToday && !selected && styles.dayTextToday,
-                  dayCell.isDisabled && styles.dayTextDisabled,
-                ]}
-              >
-                {dayCell.date.getDate()}
-              </Text>
-            </Pressable>
+              <View style={[styles.dayInner, dayCell.isBlocked && styles.dayInnerBlocked]}>
+                <Text
+                  style={[
+                    styles.dayText,
+                    isMobile && styles.dayTextMobile,
+                    !dayCell.isCurrentMonth && styles.dayTextOtherMonth,
+                    (selected === 'start' || selected === 'end') && styles.dayTextSelected,
+                    dayCell.isToday && !selected && styles.dayTextToday,
+                    dayCell.isDisabled && styles.dayTextDisabled,
+                    dayCell.isBlocked && styles.dayTextBlocked,
+                  ]}
+                >
+                  {dayCell.date.getDate()}
+                </Text>
+                {dayCell.isBlocked && <View style={styles.blockedLine} />}
+              </View>
+            </TouchableOpacity>
           );
         })}
       </View>
@@ -204,9 +297,15 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
           startDate && !endDate && styles.legendTextHighlight
         ]}>
           {!startDate && 'Select check-in date'}
-          {startDate && !endDate && '✓ Check-in selected — Now select check-out date'}
+          {startDate && !endDate && `✓ Check-in selected — Now select check-out${minNights > 1 ? ` (${minNights} night min)` : ''}`}
           {startDate && endDate && `${startDate.toLocaleDateString()} - ${endDate.toLocaleDateString()}`}
         </Text>
+        {isLoadingAvailability && (
+          <Text style={styles.loadingText}>Loading availability...</Text>
+        )}
+        {blockedDates && blockedDates.size > 0 && !isLoadingAvailability && (
+          <Text style={styles.blockedInfo}>Strikethrough dates are unavailable</Text>
+        )}
       </View>
     </View>
   );
@@ -215,55 +314,65 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate }: DateP
 const styles = StyleSheet.create({
   container: {
     backgroundColor: BrandColors.white,
-    borderRadius: 16,
-    padding: Spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.1,
-    shadowRadius: 20,
-    elevation: 8,
+    borderRadius: Radius.xl,
+    padding: Space[6],
+    ...Shadow.md,
     maxWidth: 380,
   },
   containerMobile: {
-    padding: Spacing.md, // Reduced from lg (24px to 16px)
-    borderRadius: 12,
+    padding: Space[4],
+    borderRadius: Radius.lg,
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: Spacing.md,
+    marginBottom: Space[4],
   },
   navButton: {
-    padding: Spacing.sm,
-    width: 40,
+    width: TouchTarget.min, // 44px
+    height: TouchTarget.min, // 44px
     alignItems: 'center',
+    justifyContent: 'center',
+    borderRadius: Radius.full,
+    ...Platform.select({
+      web: {
+        cursor: 'pointer',
+      },
+    }),
   },
   navText: {
-    fontSize: 24,
+    fontSize: FontSize['3xl'], // Larger for easier tapping
+    lineHeight: LineHeight['3xl'],
     color: BrandColors.black,
-    fontWeight: '600',
+    fontWeight: FontWeight.bold,
+  },
+  navButtonPressed: {
+    backgroundColor: BrandColors.gray.light,
   },
   monthText: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
   },
   monthTextMobile: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
   },
   dayNamesRow: {
     flexDirection: 'row',
-    marginBottom: Spacing.xs,
+    marginBottom: Space[2],
   },
   dayNameCell: {
     flex: 1,
     alignItems: 'center',
-    paddingVertical: Spacing.xs,
+    paddingVertical: Space[2],
   },
   dayNameText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.gray.medium,
     textTransform: 'uppercase',
   },
@@ -274,30 +383,48 @@ const styles = StyleSheet.create({
   calendarGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
+    marginHorizontal: 0, // No negative margin - stable layout
   },
   dayCell: {
     width: '14.28%', // 100% / 7 days
     aspectRatio: 1,
     justifyContent: 'center',
     alignItems: 'center',
+    minHeight: 40, // Ensure minimum touch target
+    zIndex: 1, // Ensure cells are above any background
     ...Platform.select({
       web: {
         cursor: 'pointer',
+        userSelect: 'none',
       },
     }),
+  },
+  dayCellMobile: {
+    minHeight: 44, // iOS minimum touch target
+  },
+  dayInner: {
+    width: 36,
+    height: 36,
+    borderRadius: Radius.full,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   dayCellOtherMonth: {
     opacity: 0.3,
   },
+  dayCellPressed: {
+    backgroundColor: BrandColors.gray.light,
+    borderRadius: Radius.full,
+  },
   dayCellStart: {
     backgroundColor: BrandColors.black,
-    borderTopLeftRadius: 50,
-    borderBottomLeftRadius: 50,
+    borderTopLeftRadius: Radius.full,
+    borderBottomLeftRadius: Radius.full,
   },
   dayCellEnd: {
     backgroundColor: BrandColors.black,
-    borderTopRightRadius: 50,
-    borderBottomRightRadius: 50,
+    borderTopRightRadius: Radius.full,
+    borderBottomRightRadius: Radius.full,
   },
   dayCellMiddle: {
     backgroundColor: BrandColors.gray.light,
@@ -307,46 +434,81 @@ const styles = StyleSheet.create({
   },
   dayCellDisabled: {
     opacity: 0.2,
+    ...Platform.select({
+      web: {
+        cursor: 'not-allowed',
+      },
+    }),
   },
   dayText: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.black,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
   },
   dayTextMobile: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
   },
   dayTextOtherMonth: {
     color: BrandColors.gray.medium,
   },
   dayTextSelected: {
     color: BrandColors.white,
-    fontWeight: '700',
+    fontWeight: FontWeight.bold,
   },
   dayTextToday: {
-    fontWeight: '700',
+    fontWeight: FontWeight.bold,
     textDecorationLine: 'underline',
   },
   dayTextDisabled: {
     color: BrandColors.gray.border,
   },
+  dayTextBlocked: {
+    color: BrandColors.gray.medium,
+  },
+  dayInnerBlocked: {
+    position: 'relative',
+  },
+  blockedLine: {
+    position: 'absolute',
+    width: 20,
+    height: 1,
+    backgroundColor: BrandColors.gray.medium,
+    transform: [{ rotate: '-45deg' }],
+  },
   legend: {
-    marginTop: Spacing.md,
-    paddingTop: Spacing.md,
+    marginTop: Space[4],
+    paddingTop: Space[4],
     borderTopWidth: 1,
     borderTopColor: BrandColors.gray.border,
     alignItems: 'center',
   },
   legendText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.gray.dark,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
   },
   legendTextMobile: {
-    fontSize: 11,
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
   },
   legendTextHighlight: {
     color: BrandColors.black,
-    fontWeight: '600',
+    fontWeight: FontWeight.semibold,
+  },
+  loadingText: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    color: BrandColors.gray.medium,
+    marginTop: Space[2],
+    fontStyle: 'italic',
+  },
+  blockedInfo: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    color: BrandColors.gray.medium,
+    marginTop: Space[2],
   },
 });
