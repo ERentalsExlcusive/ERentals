@@ -19,6 +19,7 @@ import { useColorScheme } from '@/hooks/use-color-scheme';
 import { BrandColors } from '@/constants/theme';
 import { SearchProvider } from '@/context/search-context';
 import { AuthProvider } from '@/context/auth-context';
+import { FavoritesProvider } from '@/context/favorites-context';
 
 // Inject global CSS for web focus states (guard against multiple injections)
 if (Platform.OS === 'web' && typeof document !== 'undefined' && !document.getElementById('erentals-focus-styles')) {
@@ -99,21 +100,23 @@ export default function RootLayout() {
 
   return (
     <AuthProvider>
-      <SearchProvider>
-        <ThemeProvider value={colorScheme === 'dark' ? DarkBrandTheme : LightTheme}>
-          <Stack>
-            <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
-            <Stack.Screen name="property/[id]" options={{ headerShown: false }} />
-            <Stack.Screen name="collaborate" options={{ headerShown: false }} />
-            <Stack.Screen name="blog" options={{ headerShown: false }} />
-            <Stack.Screen name="about" options={{ headerShown: false }} />
-            <Stack.Screen name="owner-portal" options={{ headerShown: false }} />
-            <Stack.Screen name="favorites" options={{ headerShown: false }} />
-            <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
-          </Stack>
-          <StatusBar style="light" translucent backgroundColor="transparent" />
-        </ThemeProvider>
-      </SearchProvider>
+      <FavoritesProvider>
+        <SearchProvider>
+          <ThemeProvider value={colorScheme === 'dark' ? DarkBrandTheme : LightTheme}>
+            <Stack>
+              <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+              <Stack.Screen name="property/[id]" options={{ headerShown: false }} />
+              <Stack.Screen name="collaborate" options={{ headerShown: false }} />
+              <Stack.Screen name="blog" options={{ headerShown: false }} />
+              <Stack.Screen name="about" options={{ headerShown: false }} />
+              <Stack.Screen name="owner-portal" options={{ headerShown: false }} />
+              <Stack.Screen name="favorites" options={{ headerShown: false }} />
+              <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
+            </Stack>
+            <StatusBar style="light" translucent backgroundColor="transparent" />
+          </ThemeProvider>
+        </SearchProvider>
+      </FavoritesProvider>
     </AuthProvider>
   );
 }

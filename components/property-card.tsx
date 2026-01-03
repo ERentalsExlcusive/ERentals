@@ -1,6 +1,6 @@
 import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
 import { useState, useCallback } from 'react';
-import { Feather } from '@expo/vector-icons';
+import { Feather, Ionicons } from '@expo/vector-icons';
 import { Rental } from '@/types/rental';
 import { BrandColors, Spacing } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/constants/design-tokens';
@@ -95,11 +95,10 @@ export function PropertyCard({ rental, onPress, isFavorite: isFavoriteProp, onFa
 
         {/* Wishlist button overlay */}
         <Pressable style={styles.wishlistButton} onPress={handleFavoriteClick}>
-          <Feather
-            name={isFavorited ? "heart" : "heart"}
-            size={18}
+          <Ionicons
+            name={isFavorited ? "heart" : "heart-outline"}
+            size={20}
             color={isFavorited ? "#E63946" : BrandColors.black}
-            fill={isFavorited ? "#E63946" : "none"}
           />
         </Pressable>
 

@@ -48,10 +48,10 @@ export default function FavoritesScreen() {
             </Pressable>
             <View style={styles.headerText}>
               <Text style={[styles.title, isMobile && styles.titleMobile]}>
-                Saved Properties
+                Saved Listings
               </Text>
               <Text style={styles.subtitle}>
-                {favorites.length} {favorites.length === 1 ? 'property' : 'properties'} saved
+                {favorites.length} {favorites.length === 1 ? 'listing' : 'listings'} saved
               </Text>
             </View>
           </View>
@@ -76,15 +76,15 @@ export default function FavoritesScreen() {
             /* Empty state */
             <View style={styles.emptyState}>
               <Feather name="heart" size={48} color={BrandColors.gray.medium} />
-              <Text style={styles.emptyTitle}>No saved properties yet</Text>
+              <Text style={styles.emptyTitle}>No saved listings yet</Text>
               <Text style={styles.emptyText}>
-                Tap the heart icon on any property to save it here
+                Tap the heart icon on any listing to save it here
               </Text>
               <Pressable
                 style={styles.browseButton}
                 onPress={() => router.push('/')}
               >
-                <Text style={styles.browseButtonText}>Browse Properties</Text>
+                <Text style={styles.browseButtonText}>Browse Listings</Text>
               </Pressable>
             </View>
           ) : (
