@@ -1,5 +1,5 @@
 import { StyleSheet, View, Text, Pressable, Image, Platform } from 'react-native';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Rental } from '@/types/rental';
 import { BrandColors, Spacing } from '@/constants/theme';
@@ -7,6 +7,7 @@ import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/const
 import { getPropertyDataBySlug, PropertyData } from '@/data/property-data';
 import { FavoritePromptModal } from './favorite-prompt-modal';
 import { AmenityList } from './amenity-list';
+import { useFavorites } from '@/hooks/use-favorites';
 
 // Format price label based on asset category
 function formatPriceLabel(propertyData: PropertyData | null): string {
@@ -32,31 +33,39 @@ function formatPriceLabel(propertyData: PropertyData | null): string {
 interface PropertyCardProps {
   rental: Rental;
   onPress?: (rental: Rental) => void;
+  isFavorite?: boolean;
+  onFavoritePress?: () => void;
 }
 
-export function PropertyCard({ rental, onPress }: PropertyCardProps) {
+export function PropertyCard({ rental, onPress, isFavorite: isFavoriteProp, onFavoritePress }: PropertyCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [showFavoriteModal, setShowFavoriteModal] = useState(false);
-  const [isFavorited, setIsFavorited] = useState(false);
+  const { isFavorite: checkIsFavorite, toggleFavorite } = useFavorites();
+
+  // Use prop if provided, otherwise check from hook
+  const isFavorited = isFavoriteProp !== undefined ? isFavoriteProp : checkIsFavorite(rental.id);
+
   const locationParts = [rental.city?.name, rental.country?.name].filter(Boolean);
   const location = locationParts.join(', ');
 
   // Get real property data from Google Sheets
   const propertyData = getPropertyDataBySlug(rental.slug);
 
-  const handleFavoriteClick = (e: any) => {
+  const handleFavoriteClick = useCallback((e: any) => {
     e.stopPropagation();
-    if (!isFavorited) {
-      setShowFavoriteModal(true);
+    if (onFavoritePress) {
+      // Use external handler if provided
+      onFavoritePress();
     } else {
-      setIsFavorited(false);
+      // Use internal favorites logic
+      toggleFavorite(rental.id, rental.slug);
     }
-  };
+  }, [onFavoritePress, rental.id, rental.slug, toggleFavorite]);
 
   const handleEmailSubmit = async (email: string) => {
-    setIsFavorited(true);
+    // Save favorite after email capture
+    await toggleFavorite(rental.id, rental.slug);
     setShowFavoriteModal(false);
-    // Future: Save email and favorite to backend/local storage
   };
 
   return (

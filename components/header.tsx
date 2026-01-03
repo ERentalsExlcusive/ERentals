@@ -1,8 +1,10 @@
 import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
+import { Feather } from '@expo/vector-icons';
 import { BrandColors, Spacing } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, ZIndex } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
+import { useFavorites } from '@/hooks/use-favorites';
 
 interface HeaderProps {
   onCategorySelect?: (category: 'villa' | 'yacht' | 'transport') => void;
@@ -12,6 +14,7 @@ interface HeaderProps {
 export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
   const router = useRouter();
   const { isMobile } = useResponsive();
+  const { favoritesCount } = useFavorites();
 
   const handleHomePress = () => {
     if (onHomePress) {
@@ -60,10 +63,20 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
           </View>
         )}
 
-        {/* Right side - Owner Portal */}
-        <Pressable style={[styles.ownerPortal, isMobile && styles.ownerPortalMobile]} onPress={() => router.push('/owner-portal')}>
-          <Text style={[styles.ownerPortalText, isMobile && styles.ownerPortalTextMobile]}>Owner Portal</Text>
-        </Pressable>
+        {/* Right side - Favorites & Owner Portal */}
+        <View style={styles.rightSection}>
+          <Pressable style={styles.favoritesButton} onPress={() => router.push('/favorites')}>
+            <Feather name="heart" size={20} color={BrandColors.black} />
+            {favoritesCount > 0 && (
+              <View style={styles.favoritesBadge}>
+                <Text style={styles.favoritesBadgeText}>{favoritesCount > 9 ? '9+' : favoritesCount}</Text>
+              </View>
+            )}
+          </Pressable>
+          <Pressable style={[styles.ownerPortal, isMobile && styles.ownerPortalMobile]} onPress={() => router.push('/owner-portal')}>
+            <Text style={[styles.ownerPortalText, isMobile && styles.ownerPortalTextMobile]}>Owner Portal</Text>
+          </Pressable>
+        </View>
       </View>
     </View>
   );
@@ -151,5 +164,35 @@ const styles = StyleSheet.create({
   ownerPortalTextMobile: {
     fontSize: 10,
     letterSpacing: 0.3,
+  },
+  rightSection: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Space[3],
+  },
+  favoritesButton: {
+    width: 44,
+    height: 44,
+    borderRadius: Radius.full,
+    alignItems: 'center',
+    justifyContent: 'center',
+    position: 'relative',
+  },
+  favoritesBadge: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    backgroundColor: '#E63946',
+    borderRadius: Radius.full,
+    minWidth: 16,
+    height: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
+  favoritesBadgeText: {
+    fontSize: 10,
+    fontWeight: FontWeight.bold,
+    color: BrandColors.white,
   },
 });
