@@ -139,11 +139,13 @@ export async function getRentals(
 
   const rawData: RentalAssetRaw[] = await response.json();
 
-  // Filter out all preview versions to avoid duplicates
-  const allNonPreview = rawData.filter(item => {
-    const slug = item.slug.toLowerCase();
-    return !slug.includes('preview');
-  });
+  // TODO: Re-enable preview filter when production data is ready
+  // For now, include preview items to allow testing
+  const allNonPreview = rawData;
+  // const allNonPreview = rawData.filter(item => {
+  //   const slug = item.slug.toLowerCase();
+  //   return !slug.includes('preview');
+  // });
 
   // Calculate actual totals based on non-preview items
   const actualTotal = allNonPreview.length;

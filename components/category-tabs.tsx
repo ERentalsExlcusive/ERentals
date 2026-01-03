@@ -1,5 +1,6 @@
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
 import { BrandColors, Spacing, Typography } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius, TouchTarget } from '@/constants/design-tokens';
 
 interface CategoryTab {
   id: number | 'all';
@@ -49,17 +50,19 @@ export function CategoryTabs({ categories, selectedId, onSelect }: CategoryTabsP
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.md,
-    gap: Spacing.sm,
+    paddingHorizontal: Space[6],
+    paddingVertical: Space[4],
+    gap: Space[2],
   },
   tab: {
-    paddingVertical: 10,
-    paddingHorizontal: 24,
-    borderRadius: 20,
+    paddingVertical: Space[3],
+    paddingHorizontal: Space[6],
+    borderRadius: Radius.full,
     backgroundColor: BrandColors.white,
     borderWidth: 1,
     borderColor: BrandColors.gray.border,
+    minHeight: TouchTarget.min,
+    justifyContent: 'center',
   },
   tabSelected: {
     backgroundColor: BrandColors.black,
@@ -69,8 +72,9 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   tabText: {
-    fontSize: 15,
-    fontWeight: '500',
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    fontWeight: FontWeight.medium,
     color: BrandColors.gray.dark,
   },
   tabTextSelected: {

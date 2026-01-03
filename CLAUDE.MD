@@ -1,341 +1,581 @@
-# CLAUDE.MD - Project Context & Objectives
+# CLAUDE.MD - ERentals Exclusive Project Documentation
 
-## Project Overview
-
-**Name:** ERentals Exclusive
-**Type:** Cross-platform React Native application
-**Framework:** Expo with TypeScript
-**Target Platforms:** Web, iOS
-**Created:** December 20, 2025
-
-## Brand Guidelines
-
-### Brand Identity
-ERentals Exclusive is a luxury property rental company specializing in exclusive vacation accommodations. The brand projects sophistication, elegance, and premium quality.
-
-### Color Palette
-| Color | Hex | Usage |
-|-------|-----|-------|
-| Primary (Navy) | `#1f2839` | Headers, dark backgrounds, pressed states |
-| Secondary (Gold) | `#bc944d` | Accents, CTAs, highlights, tab icons |
-| White | `#ffffff` | Backgrounds, text on dark |
-| Black | `#000000` | Primary text |
-| Gray Light | `#f5f4f4` | Card backgrounds, subtle fills |
-| Gray Medium | `#818181` | Secondary text, icons |
-| Gray Dark | `#505050` | Body text |
-| Gray Darker | `#232323` | Dark mode backgrounds |
-
-### Typography
-**Font Families:**
-- **Cormorant Garamond** (Primary) - Elegant serif for headings and body
-  - Regular (400), SemiBold (600), Bold (700)
-- **DM Serif Display** - Display font for accent text and taglines
-
-**Type Scale:**
-- H1: 48px, Bold
-- H2: 36px, Bold
-- H3: 28px, SemiBold
-- Body: 18px, Regular
-- Button: 16px, SemiBold, uppercase, letter-spacing: 1
-
-### Design Patterns
-- **Buttons:** Gold background, white text, 10px border-radius, 16px vertical / 40px horizontal padding
-- **Pressed State:** Navy background
-- **Dividers:** 2px gold line, 40-60px width
-- **Cards:** Light gray background (#f5f4f4), 10px border-radius
-- **Spacing:** 8px base unit (xs:4, sm:8, md:16, lg:24, xl:32, xxl:48)
-
-### Tone of Voice
-- Sophisticated and refined
-- Emphasizes exclusivity and luxury
-- Uses words like: "curated," "exclusive," "discerning," "unparalleled," "elegant"
-
-## Current Objectives
-
-### Primary Goal
-Create a luxury rental property app that matches the erentalsexclusive.com brand identity.
-
-### Completed Tasks
-- ✅ Initialize Expo project with default template
-- ✅ Configure project name to "erentals-exclusive" (app.json, package.json)
-- ✅ Set up iOS bundle identifier: `com.erentals.exclusive`
-- ✅ Implement brand theme system (colors, typography, spacing)
-- ✅ Set up Google Fonts (Cormorant Garamond, DM Serif Display)
-- ✅ Create branded home screen with hero section
-- ✅ Create BrandButton component (primary, secondary, outline variants)
-- ✅ Connect to WordPress REST API backend
-- ✅ Create API service layer with TypeScript types
-- ✅ Implement rental listings with live data from WordPress
-- ✅ Create RentalCard component with image, title, location, category
-
-### Current Status
-**BLOCKED:** Requires Node.js 20+ to run (currently on v18.19.1)
-- User is using nvm and can easily upgrade
-- Once Node is upgraded, app should run successfully
-
-## Backend API (WordPress)
-
-### Base URL
-`https://erentalsexclusive.com/wp-json/wp/v2`
-
-### Custom Post Types
-| Endpoint | Description |
-|----------|-------------|
-| `/rental_asset` | Primary rental property listings |
-| `/listing` | Secondary listing content |
-| `/creator` | User-generated content |
-
-### Taxonomies
-| Endpoint | Description | Example Values |
-|----------|-------------|----------------|
-| `/city` | Geographic cities | Mykonos, Tulum, Miami |
-| `/country` | Countries | USA (40), Mexico (26), France (9), Greece (7) |
-| `/rental_category` | Property types | Villa (54), Yacht (16), Transport (13), Property (5), Hotel (2) |
-| `/rental_status` | Availability status | - |
-
-### Query Parameters
-- `_embed=true` - Include featured media and taxonomy terms
-- `per_page=N` - Items per page (default 10)
-- `page=N` - Pagination
-- `city=ID` - Filter by city
-- `country=ID` - Filter by country
-- `rental_category=ID` - Filter by category
-- `search=term` - Search by keyword
-
-### Response Headers
-- `X-WP-Total` - Total items
-- `X-WP-TotalPages` - Total pages
-
-### App Integration
-- **Types:** `types/rental.ts` - TypeScript interfaces for API responses
-- **Service:** `services/api.ts` - API fetch functions with transforms
-- **Hooks:** `hooks/use-rentals.ts` - React hooks for data fetching
-
-## Technology Stack
-
-### Core Technologies
-- **React:** 19.1.0
-- **React Native:** 0.81.5
-- **TypeScript:** ~5.9.2
-- **Expo SDK:** ~54.0.30
-- **Expo Router:** ~6.0.21 (file-based navigation)
-
-### Key Dependencies
-- `react-native-web`: ~0.21.0 (web support)
-- `react-native-reanimated`: ~4.1.1 (animations)
-- `@react-navigation/bottom-tabs`: ^7.4.0 (tab navigation)
-- `@expo-google-fonts/cormorant-garamond`: ^0.4.1 (brand typography)
-- `@expo-google-fonts/dm-serif-display`: ^0.4.2 (display font)
-
-### Development Tools
-- ESLint: ^9.25.0
-- TypeScript strict mode enabled
-- Expo Metro bundler
-
-## Architecture
-
-### Project Structure
-```
-erentals-app/
-├── app/                          # Expo Router - File-based routing
-│   ├── (tabs)/                   # Tab navigation route group
-│   │   ├── _layout.tsx           # Tab navigator configuration
-│   │   ├── index.tsx             # Home screen with hero
-│   │   └── explore.tsx           # Properties listing (live data)
-│   ├── _layout.tsx               # Root layout (theme, fonts, providers)
-│   └── +not-found.tsx            # 404 fallback page
-│
-├── components/                   # Reusable UI components
-│   ├── brand-button.tsx          # Branded button (primary/secondary/outline)
-│   ├── rental-card.tsx           # Property card with image overlay
-│   ├── themed-text.tsx           # Text with automatic theming
-│   ├── themed-view.tsx           # View with automatic theming
-│   └── ui/                       # UI component library
-│
-├── constants/                    # App-wide constants
-│   └── theme.ts                  # Brand colors, typography, spacing
-│
-├── hooks/                        # Custom React hooks
-│   ├── use-color-scheme.ts       # Light/dark mode detection
-│   └── use-rentals.ts            # Rental data fetching hooks
-│
-├── services/                     # API layer
-│   └── api.ts                    # WordPress REST API client
-│
-├── types/                        # TypeScript definitions
-│   └── rental.ts                 # Rental, taxonomy, API types
-│
-├── assets/                       # Static assets
-│   ├── images/                   # Icons, logos, splash screens
-│   └── fonts/                    # Custom fonts
-│
-├── app.json                      # Expo configuration
-├── tsconfig.json                 # TypeScript configuration
-├── package.json                  # Dependencies and scripts
-└── CLAUDE.MD                     # This file - AI context document
-```
-
-### Key Architectural Decisions
-
-1. **Expo Router (File-based Navigation)**
-   - Routes are defined by file structure in `app/` directory
-   - Route groups like `(tabs)` organize navigation without affecting URLs
-   - Typed routes enabled for type-safe navigation
-
-2. **Theme System**
-   - Automatic light/dark mode support
-   - Themed components (ThemedText, ThemedView) throughout
-   - Color scheme detection via custom hooks
-
-3. **TypeScript Configuration**
-   - Strict mode enabled
-   - Path aliases configured: `@/` maps to project root
-   - Examples: `@/components/*`, `@/constants/*`, `@/hooks/*`
-
-4. **Modern React Native Architecture**
-   - New Architecture enabled (`newArchEnabled: true`)
-   - React Compiler experiments enabled
-   - Better performance and future-proofing
-
-## Development Workflow
-
-### Available Scripts
-```bash
-npm start          # Start Expo dev server (choose platform)
-npm run web        # Launch web version
-npm run ios        # Launch iOS simulator
-npm run android    # Launch Android emulator (not configured yet)
-npm run lint       # Run ESLint
-npx tsc --noEmit   # TypeScript type checking
-```
-
-### Development Server
-- Metro bundler serves both web and native platforms
-- Hot reload enabled (Fast Refresh)
-- Press `w` for web, `i` for iOS from `npm start`
-
-### Build & Deploy
-- **Web:** `npx expo export` → static files for deployment
-- **iOS:** Use EAS Build (`eas build --platform ios`)
-
-## Current Implementation
-
-### Home Screen (`app/(tabs)/index.tsx`)
-Branded landing page with luxury aesthetic:
-- **Hero Section:** Navy background with brand name in Cormorant Garamond
-- **Tagline:** "Exclusive" in gold DM Serif Display with wide letter-spacing
-- **Divider:** Gold accent line
-- **Subtitle:** "Luxury Properties for Discerning Guests"
-- **Content Section:** Welcome message and CTA button
-- **Button:** Gold "Explore Properties" with press state
-
-### Properties Screen (`app/(tabs)/explore.tsx`)
-Live rental listings from WordPress:
-- **Header:** "Our Properties" with dynamic count
-- **FlatList:** Paginated rental cards with pull-to-refresh
-- **Loading State:** Branded spinner with loading text
-- **Error Handling:** Graceful error display
-- **Infinite Scroll:** Load more on scroll end
-
-### RentalCard Component (`components/rental-card.tsx`)
-Property card with image overlay:
-- **Featured Image:** Full-bleed with dark gradient overlay
-- **Category Badge:** Gold pill with category name
-- **Title:** Large serif text (removes "– Preview" suffix)
-- **Location:** City, Country format
-- **Press State:** Scale and opacity feedback
-
-### BrandButton Component (`components/brand-button.tsx`)
-Reusable button with three variants:
-- **Primary:** Gold background, white text
-- **Secondary:** Navy background, white text
-- **Outline:** Transparent with gold border, gold text
-All variants have press states and consistent styling
-
-### API Layer (`services/api.ts`)
-WordPress REST API client:
-- **getRentals():** Paginated listing with filters
-- **getRentalById():** Single rental by ID
-- **getRentalBySlug():** Single rental by URL slug
-- **getCities/getCountries/getRentalCategories():** Taxonomy fetchers
-- **searchRentals():** Keyword search
-
-## Known Issues
-
-### Critical
-1. **Node.js Version Mismatch**
-   - Required: Node.js 20.19.4+
-   - Current: v18.19.1
-   - Error: `configs.toReversed is not a function`
-   - Solution: Upgrade via nvm (`nvm install 20 && nvm use 20`)
-
-### Warnings (Non-blocking)
-- Various deprecated packages (inflight, rimraf, glob@7)
-  - These are dependencies of dependencies, not urgent
-
-## Next Steps
-
-### Immediate
-1. [ ] Upgrade Node.js to version 20+
-2. [ ] Test web app: `npm run web`
-3. [ ] Test iOS app: `npm run ios` (requires Xcode)
-
-### Future Development Roadmap
-1. [ ] Create rental detail screen with full property info
-2. [ ] Add category/country filter UI
-3. [ ] Implement search functionality
-4. [ ] Add favorites/saved properties (local storage)
-5. [ ] Create booking inquiry flow
-6. [ ] Add image gallery/carousel for properties
-7. [ ] Implement push notifications
-8. [ ] Add testing setup (Jest, React Testing Library)
-9. [ ] Configure CI/CD pipeline
-
-### Scalability Considerations
-When the app grows, consider:
-- Moving to `src/` directory structure
-- Adding `types/` for shared TypeScript definitions
-- Creating `utils/` for helper functions
-- Setting up `services/` for API calls
-- Implementing `store/` or `context/` for state management
-- Adding `config/` for environment variables
-
-## Important Notes
-
-### For Future Claude Sessions
-- Project uses **Expo Router** (not React Navigation directly)
-- Path aliases are configured: use `@/components/...` instead of relative paths
-- **Use brand fonts:** `CormorantGaramond_400Regular`, `CormorantGaramond_600SemiBold`, `CormorantGaramond_700Bold`, `DMSerifDisplay_400Regular`
-- **Use brand colors:** Import from `@/constants/theme` (BrandColors, Colors, Typography, Spacing)
-- **Use BrandButton component** for all CTAs - supports primary, secondary, outline variants
-- Maintain luxury aesthetic: elegant typography, gold accents, generous spacing
-- TypeScript strict mode is enabled - maintain type safety
-
-### Environment Configuration
-- No `.env` file yet - add when API keys are needed
-- iOS bundle ID: `com.erentals.exclusive`
-- App scheme: `erentals://`
-
-### Git Repository
-- Git initialized
-- Remote: `git@github.com-silo:ERentalsExlcusive/ERentals.git`
-
-## Resources
-
-### Official Documentation
-- [Expo Documentation](https://docs.expo.dev/)
-- [Expo Router Documentation](https://docs.expo.dev/router/introduction/)
-- [React Native Documentation](https://reactnative.dev/)
-- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
-
-### Key Expo Router Concepts
-- [File-based routing](https://docs.expo.dev/router/create-pages/)
-- [Typed routes](https://docs.expo.dev/router/reference/typed-routes/)
-- [Layouts](https://docs.expo.dev/router/layouts/)
-- [Route groups](https://docs.expo.dev/router/layouts/#route-groups)
+> **Last Updated:** January 2, 2026
+> **Status:** QA Phase 2 - Search Pill Rebuild
+> **Deployment:** https://dist-seven-iota-53.vercel.app/
 
 ---
 
-**Last Updated:** December 23, 2025
-**Status:** WordPress API integrated, live rental listings, pending Node.js upgrade
+## 1. Project Overview
+
+**ERentals Exclusive** is a luxury property rental marketplace built with React Native/Expo for cross-platform deployment (Web, iOS, Android).
+
+| Attribute | Value |
+|-----------|-------|
+| **Framework** | Expo SDK 54 with TypeScript |
+| **Platforms** | Web (primary), iOS, Android |
+| **Backend** | WordPress REST API |
+| **Hosting** | Vercel (static export) |
+| **Bundle ID** | `com.erentals.exclusive` |
+| **App Scheme** | `erentals://` |
+
+### Brand Identity
+A luxury property rental company projecting sophistication, elegance, and premium quality. Tone: "curated," "exclusive," "discerning," "unparalleled."
+
+---
+
+## 2. Quick Start
+
+```bash
+# Prerequisites: Node.js 20+
+node -v  # Should be v20.x or higher
+
+# Install dependencies
+npm install
+
+# Development
+npm run web        # Web browser
+npm run ios        # iOS Simulator (requires Xcode)
+npm start          # Choose platform interactively
+
+# Production Build
+npx expo export --platform web   # Outputs to dist/
+vercel --prod                    # Deploy to Vercel
+
+# Code Quality
+npm run lint       # ESLint
+npx tsc --noEmit   # TypeScript check
+```
+
+---
+
+## 3. Project Architecture
+
+```
+ERentals/
+├── app/                              # Expo Router (file-based routing)
+│   ├── _layout.tsx                   # Root layout (fonts, theme, providers)
+│   ├── modal.tsx                     # Modal screen
+│   ├── +not-found.tsx                # 404 fallback
+│   ├── (tabs)/                       # Tab navigation group
+│   │   ├── _layout.tsx               # Tab navigator config
+│   │   ├── index.tsx                 # Home (Hero + Search + Grid)
+│   │   ├── explore.tsx               # Creator Hub (coming soon)
+│   │   └── contact.tsx               # Contact/Concierge
+│   └── property/
+│       └── [id].tsx                  # Property detail (dynamic route)
+│
+├── components/                       # 32 UI components
+│   ├── brand-button.tsx              # Primary CTA button
+│   ├── hero.tsx                      # Full-height hero section
+│   ├── header.tsx                    # Top navigation bar
+│   ├── search-bar.tsx                # Advanced search (637 lines)
+│   ├── bottom-sheet.tsx              # Modal overlay component
+│   ├── date-picker.tsx               # Calendar date range picker
+│   ├── property-card.tsx             # Property listing card
+│   ├── property-grid.tsx             # Responsive grid layout
+│   ├── property-gallery.tsx          # Image carousel with fullscreen
+│   ├── booking-card.tsx              # Desktop booking sidebar
+│   ├── booking-bottom-bar.tsx        # Mobile floating booking bar
+│   ├── category-tabs.tsx             # Filter tabs (Villa/Yacht/Transport)
+│   ├── custom-tab-bar.tsx            # Bottom tab navigation
+│   ├── amenity-icons.tsx             # WiFi, Pool, AC, etc. icons
+│   ├── luxury-amenity-icons.tsx      # Premium icon variants
+│   ├── skeleton.tsx                  # Loading placeholder
+│   ├── skeleton-loader.tsx           # Animated skeleton
+│   ├── contact-form.tsx              # Inquiry form
+│   ├── favorite-prompt-modal.tsx     # Email capture modal
+│   └── [... 13 more components]
+│
+├── constants/
+│   ├── theme.ts                      # Brand colors, typography
+│   └── design-tokens.ts              # 8pt grid, spacing, shadows
+│
+├── hooks/
+│   ├── use-rentals.ts                # Rental data fetching
+│   ├── use-responsive.ts             # Breakpoint detection
+│   ├── use-locations.ts              # City/country fetching
+│   ├── use-cities.ts                 # Cities with images
+│   ├── use-color-scheme.ts           # Light/dark mode
+│   ├── use-color-scheme.web.ts       # Web-specific scheme
+│   └── use-theme-color.ts            # Theme color utility
+│
+├── services/
+│   └── api.ts                        # WordPress REST API client (260 lines)
+│
+├── types/
+│   └── rental.ts                     # TypeScript interfaces
+│
+├── data/
+│   └── property-data.ts              # 90+ properties with pricing (1536 lines)
+│
+├── assets/images/                    # Icons, logos, splash screens
+├── dist/                             # Production build output
+├── .vercel/                          # Vercel deployment config
+│
+├── package.json                      # Dependencies
+├── app.json                          # Expo configuration
+├── tsconfig.json                     # TypeScript config
+├── vercel.json                       # Vercel build config
+├── QA_BUG_LIST.md                    # Known issues & fix plan
+└── CLAUDE.MD                         # This file
+```
+
+---
+
+## 4. Brand & Design System
+
+### Color Palette
+
+```typescript
+// constants/theme.ts
+BrandColors = {
+  primary: '#000000',        // Pure black - primary text, backgrounds
+  secondary: '#bc944d',      // Gold accent - CTAs, highlights, tab icons
+  white: '#ffffff',
+  black: '#000000',
+  gray: {
+    light: '#f8f8f8',        // Ultra light backgrounds
+    medium: '#999999',       // Secondary text
+    dark: '#333333',         // Body text
+    darker: '#1a1a1a',       // Dark mode backgrounds
+    border: '#e5e5e5',       // Borders
+  },
+}
+```
+
+### Typography
+
+| Level | Size | Weight | Line Height |
+|-------|------|--------|-------------|
+| H1 | 48px | Bold (700) | 56px |
+| H2 | 36px | Bold (700) | 44px |
+| H3 | 28px | SemiBold (600) | 36px |
+| Body | 18px | Regular (400) | 28px |
+| Body Small | 16px | Regular (400) | 24px |
+| Button | 16px | SemiBold (600) | 24px |
+
+**Font Families:**
+- **Web:** Cormorant Garamond, DM Serif Display
+- **iOS:** Georgia (serif fallback)
+- **Android:** System serif
+
+### Design Tokens (8pt Grid)
+
+```typescript
+// constants/design-tokens.ts
+Space = { 0:0, 1:4, 2:8, 3:12, 4:16, 5:20, 6:24, 8:32, 10:40, 12:48, 14:56, 16:64, 20:80, 24:96 }
+FontSize = { xs:11, sm:13, base:15, md:16, lg:18, xl:20, '2xl':24, '3xl':28, '4xl':32, '5xl':36, '6xl':44 }
+Radius = { none:0, sm:2, base:4, md:8, lg:12, xl:16, '2xl':20, full:9999 }
+TouchTarget = { min:44, comfortable:48, spacious:56 }
+ZIndex = { base:0, dropdown:1000, sticky:1100, overlay:1200, modal:1300, toast:1400 }
+```
+
+### Button Variants
+
+| Variant | Background | Text | Use Case |
+|---------|------------|------|----------|
+| **Primary** | Black (#000) | White | Main CTAs |
+| **Ghost** | Transparent + border | Black | Secondary actions |
+| **Accent** | Gold (#bc944d) | White | Highlights, premium |
+
+All buttons: 24px border-radius (pill shape), 14px vertical / 28px horizontal padding.
+
+---
+
+## 5. Component Library (32 Components)
+
+### Core UI
+| Component | File | Purpose |
+|-----------|------|---------|
+| `BrandButton` | brand-button.tsx | Reusable button (primary/ghost/accent) |
+| `ThemedText` | themed-text.tsx | Auto-themed text (title/subtitle/link) |
+| `ThemedView` | themed-view.tsx | Auto-themed container |
+
+### Hero & Search
+| Component | File | Lines | Purpose |
+|-----------|------|-------|---------|
+| `Hero` | hero.tsx | 123 | Full-height hero with image background |
+| `SearchBar` | search-bar.tsx | 637 | Destination, dates, guests search |
+| `BottomSheet` | bottom-sheet.tsx | 206 | Platform-aware modal overlay |
+| `DatePicker` | date-picker.tsx | 358 | Calendar range picker |
+
+### Property Listings
+| Component | File | Purpose |
+|-----------|------|---------|
+| `PropertyCard` | property-card.tsx | Modern property card with wishlist |
+| `PropertyGrid` | property-grid.tsx | Responsive 1-4 column grid |
+| `RentalCard` | rental-card.tsx | Simple property card |
+
+### Property Detail
+| Component | File | Purpose |
+|-----------|------|---------|
+| `PropertyGallery` | property-gallery.tsx | Swipe carousel + fullscreen modal |
+| `ImageGallery` | image-gallery.tsx | Main image + thumbnails |
+| `BookingCard` | booking-card.tsx | Desktop sticky booking sidebar |
+| `BookingBottomBar` | booking-bottom-bar.tsx | Mobile floating inquiry bar |
+| `AmenityList` | amenity-list.tsx | Amenity display with icons |
+
+### Navigation
+| Component | File | Purpose |
+|-----------|------|---------|
+| `Header` | header.tsx | Top nav with desktop links |
+| `CustomTabBar` | custom-tab-bar.tsx | Bottom tab navigation |
+| `CategoryTabs` | category-tabs.tsx | Horizontal filter pills |
+| `HapticTab` | haptic-tab.tsx | Tab with iOS haptic feedback |
+
+### Icons
+| Component | File | Icons |
+|-----------|------|-------|
+| `AmenityIcons` | amenity-icons.tsx | WiFi, Pool, AC, Parking, Kitchen, Gym, Beach, TV, Pet, Washer |
+| `LuxuryAmenityIcons` | luxury-amenity-icons.tsx | Premium monolinear variants |
+| `CustomIcons` | custom-icons.tsx | GroupedAvatars, Phone |
+| `IconSymbol` | ui/icon-symbol.tsx | SF Symbols / Material Icons |
+
+### Loading & Forms
+| Component | File | Purpose |
+|-----------|------|---------|
+| `Skeleton` | skeleton.tsx | Pulsing placeholder |
+| `SkeletonLoader` | skeleton-loader.tsx | Reanimated skeleton |
+| `ContactForm` | contact-form.tsx | Inquiry form with validation |
+| `FavoritePromptModal` | favorite-prompt-modal.tsx | Email capture modal |
+
+---
+
+## 6. Data Layer
+
+### WordPress REST API
+
+**Base URL:** `https://erentalsexclusive.com/wp-json/wp/v2`
+
+| Endpoint | Description |
+|----------|-------------|
+| `/rental_asset` | Primary rental properties |
+| `/listing` | Secondary listings |
+| `/creator` | User content |
+| `/city` | City taxonomy |
+| `/country` | Country taxonomy |
+| `/rental_category` | Property types |
+
+**Category IDs:**
+```typescript
+RentalCategory = { Villa: 44, Yacht: 45, Transport: 84, Property: 99, Hotel: 102 }
+Country = { Colombia: 111, CostaRica: 129, France: 119, Greece: 133, Mexico: 100, Turkey: 116, USA: 117 }
+```
+
+### API Functions (`services/api.ts`)
+
+```typescript
+getRentals(params?)          // Paginated listings with filters
+getRentalById(id)            // Single rental by ID
+getRentalBySlug(slug)        // Single rental by URL slug
+getCities()                  // All city terms
+getCountries()               // All country terms
+getRentalCategories()        // All category terms
+searchRentals(query)         // Keyword search
+getRentalGallery(rentalId)   // Property gallery images
+```
+
+### TypeScript Types (`types/rental.ts`)
+
+```typescript
+interface Rental {
+  id: number
+  title: string
+  slug: string
+  link: string
+  datePublished: string
+  dateModified: string
+  content: string
+  excerpt: string
+  featuredImage: { url, alt, width, height, sizes } | null
+  city: TaxonomyTerm | null
+  country: TaxonomyTerm | null
+  category: TaxonomyTerm | null
+  status: TaxonomyTerm | null
+  acf?: Record<string, unknown>
+}
+
+interface TaxonomyTerm { id, name, slug, count, description?, link? }
+```
+
+### Custom Hooks (`hooks/`)
+
+| Hook | Returns | Purpose |
+|------|---------|---------|
+| `useRentals(params?)` | rentals, loading, error, loadMore, refresh | Paginated listing data |
+| `useRental(id)` | rental, loading, error | Single rental detail |
+| `useCities()` | cities (with images), loading, error | Cities for location picker |
+| `useLocations()` | locations, loading, error | Combined cities + countries |
+| `useResponsive()` | width, isMobile, isTablet, isDesktop | Breakpoint detection |
+| `useColorScheme()` | 'light' \| 'dark' | System color scheme |
+| `useThemeColor(props, colorName)` | color string | Theme-aware color |
+
+### Property Data Enrichment (`data/property-data.ts`)
+
+**90+ properties** with pricing, specs, and amenities sourced from Google Sheets.
+
+```typescript
+interface PropertyData {
+  assetName: string
+  assetSlug: string
+  category: 'villa' | 'yacht' | 'transport' | 'property' | 'hotel'
+  country, region, city: string
+  guestMax, bedrooms, bathrooms: number | null
+  overview: string
+  displayPrice: string
+  minStayNights: number | null
+  amenities: string[]
+  icalUrl?: string
+}
+
+// Usage:
+import { getPropertyDataBySlug } from '@/data/property-data';
+const propertyData = getPropertyDataBySlug(rental.slug);
+```
+
+### Data Flow
+
+```
+WordPress API (rental_asset)
+    ↓ [fetch with _embed=true]
+transformRental() in api.ts
+    ↓ [decode HTML, extract media/taxonomies, filter previews]
+Rental object (typed)
+    ↓ [passed to component]
+getPropertyDataBySlug(rental.slug)
+    ↓ [merge pricing, specs, amenities]
+Complete property display
+```
+
+---
+
+## 7. App Routes & Navigation
+
+### Route Map
+
+| Path | Screen | Data Source |
+|------|--------|-------------|
+| `/` | Home | Hero + SearchBar + PropertyGrid |
+| `/explore` | Creator Hub | Coming soon placeholder |
+| `/contact` | Contact | Concierge info |
+| `/property/[id]` | Property Detail | useRental(id) + getPropertyDataBySlug() |
+
+### Tab Navigation
+
+```
+Home (house icon) → / (index.tsx)
+Creators (avatars icon) → /explore (explore.tsx)
+Contact (phone icon) → /contact (contact.tsx)
+```
+
+### Root Layout Features (`app/_layout.tsx`)
+- Font loading (Cormorant Garamond, DM Serif Display)
+- Theme provider (light/dark mode)
+- Splash screen handling
+- Status bar configuration
+
+---
+
+## 8. Configuration Files
+
+### package.json (Key Dependencies)
+
+```json
+{
+  "react": "19.1.0",
+  "react-native": "0.81.5",
+  "expo": "~54.0.30",
+  "expo-router": "~6.0.21",
+  "typescript": "~5.9.2",
+  "react-native-web": "~0.21.0",
+  "react-native-reanimated": "~4.1.1",
+  "@react-navigation/bottom-tabs": "^7.4.0",
+  "@expo-google-fonts/cormorant-garamond": "^0.4.1",
+  "@expo-google-fonts/dm-serif-display": "^0.4.2"
+}
+```
+
+### app.json (Expo Config)
+
+```json
+{
+  "name": "ERentals Exclusive",
+  "slug": "erentals-exclusive",
+  "scheme": "erentals",
+  "newArchEnabled": true,
+  "experiments": { "typedRoutes": true, "reactCompiler": true },
+  "ios": { "bundleIdentifier": "com.erentals.exclusive" },
+  "web": { "output": "static" }
+}
+```
+
+### vercel.json
+
+```json
+{
+  "buildCommand": "npx expo export --platform web",
+  "outputDirectory": "dist",
+  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+}
+```
+
+### tsconfig.json
+
+```json
+{
+  "extends": "expo/tsconfig.base",
+  "compilerOptions": {
+    "strict": true,
+    "paths": { "@/*": ["./*"] }
+  }
+}
+```
+
+---
+
+## 9. Deployment
+
+| Attribute | Value |
+|-----------|-------|
+| **Production URL** | https://dist-seven-iota-53.vercel.app/ |
+| **Platform** | Vercel |
+| **Build Command** | `npx expo export --platform web` |
+| **Output Directory** | `dist/` |
+| **Routing** | SPA rewrites to index.html |
+
+### Build Output (`dist/`)
+```
+dist/
+├── index.html
+├── contact.html, explore.html, modal.html
+├── property/[id].html
+├── _expo/static/js/     # Web, iOS, Android bundles
+├── assets/              # Images, fonts (hashed)
+└── metadata.json
+```
+
+### Environment Variables
+- `.env.local` - Vercel OIDC token (auto-generated, do not commit)
+
+---
+
+## 10. Current QA Status
+
+**14 bugs documented in `QA_BUG_LIST.md`**
+
+| Phase | Status | Focus |
+|-------|--------|-------|
+| 1 | ✅ Complete | Bug documentation |
+| 2 | 🔥 **Current** | Search pill rebuild |
+| 3 | Pending | "Where to?" modal fix |
+| 4 | Pending | Date picker fix |
+| 5 | Pending | Listing page polish |
+| 6 | Pending | Booking flow |
+| 7 | Pending | iCal availability |
+
+### Critical Bugs
+1. **Search Bar:** Giant black "Clear" bar, cramped spacing, typography issues
+2. **Where To Modal:** Destinations not clickable (scroll conflict)
+3. **Date Picker:** Calendar not working on home page
+4. **Listing Page:** Too much whitespace, black hero images, header shows "[id]"
+5. **Booking Flow:** No actual booking functionality yet
+
+### Quality Standards
+- 8pt spacing system (8/12/16/24/32/48)
+- 56px minimum touch targets on mobile
+- Test on iOS Safari + desktop Chrome
+- No "AI vibe" - intentional luxury aesthetic
+
+---
+
+## 11. Development Roadmap
+
+### Completed
+- ✅ Expo project with TypeScript
+- ✅ Brand theme system (colors, typography, spacing)
+- ✅ WordPress REST API integration
+- ✅ Property listings with live data
+- ✅ Property detail pages with galleries
+- ✅ Booking cards (desktop sidebar, mobile bar)
+- ✅ Search bar with destination/date/guest pickers
+- ✅ Category filtering tabs
+- ✅ Responsive grid layouts (1-4 columns)
+- ✅ Skeleton loading states
+- ✅ Custom amenity icons
+- ✅ Vercel deployment
+
+### In Progress
+- 🔥 Search pill UI polish
+- 🔥 Date picker reliability
+
+### Upcoming
+- [ ] Booking inquiry → GoHighLevel webhook
+- [ ] iCal availability integration
+- [ ] Confirmation page with WhatsApp CTA
+- [ ] User authentication
+- [ ] Favorites/saved properties
+- [ ] Push notifications
+
+---
+
+## 12. Critical Reminders for Claude
+
+### Code Conventions
+```typescript
+// Use path aliases
+import { BrandButton } from '@/components/brand-button';
+import { BrandColors, Typography } from '@/constants/theme';
+import { Space, FontSize, Radius } from '@/constants/design-tokens';
+
+// Use property data enrichment
+import { getPropertyDataBySlug } from '@/data/property-data';
+const propertyData = getPropertyDataBySlug(rental.slug);
+
+// Use responsive hooks
+const { isMobile, isTablet, isDesktop, width } = useResponsive();
+```
+
+### Styling Rules
+- **Always use 8pt grid:** Space[2]=8, Space[4]=16, Space[6]=24, etc.
+- **Use design tokens:** Never hardcode colors, sizes, or spacing
+- **Pill buttons:** 24px border-radius
+- **Touch targets:** Minimum 44px, prefer 48-56px on mobile
+- **Typography:** Use Typography.h1/h2/h3/body from theme
+
+### Font Usage
+```typescript
+// Google Fonts (loaded in _layout.tsx)
+fontFamily: 'CormorantGaramond_400Regular'
+fontFamily: 'CormorantGaramond_600SemiBold'
+fontFamily: 'CormorantGaramond_700Bold'
+fontFamily: 'DMSerifDisplay_400Regular'
+```
+
+### Testing Checklist
+- [ ] iOS Safari (mobile viewport 375x667)
+- [ ] Desktop Chrome (1440px+)
+- [ ] Check all touch targets
+- [ ] Verify no micro-glitches
+- [ ] Ensure luxury aesthetic (no "AI vibe")
+
+### Git Repository
+```bash
+git remote: git@github.com-silo:ERentalsExlcusive/ERentals.git
+```
+
+---
+
+## Resources
+
+- [Expo Documentation](https://docs.expo.dev/)
+- [Expo Router](https://docs.expo.dev/router/introduction/)
+- [React Native](https://reactnative.dev/)
+- [TypeScript Handbook](https://www.typescriptlang.org/docs/)
+- [WordPress REST API](https://developer.wordpress.org/rest-api/)
+
+---
+
 **Maintainer:** Claude Code Assistant
+**Project:** ERentals Exclusive
+**Version:** 1.0.0

@@ -371,20 +371,6 @@ export function SearchBar({ onSearch, selectedCategory = 'all' }: SearchBarProps
   return (
     <View style={styles.container} nativeID="search-bar-container">
       <View style={[styles.searchBox, isMobile && styles.searchBoxMobile]}>
-        {/* Clear Button - Inline, before search button */}
-        {hasActiveFilters && (
-          <Pressable
-            style={[
-              styles.clearButtonInline,
-              isMobile && { right: 52, width: 24, height: 24, transform: [{ translateY: -12 }] }
-            ]}
-            onPress={handleReset}
-            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
-          >
-            <Feather name="x" size={isMobile ? 14 : 16} color={BrandColors.gray.dark} />
-          </Pressable>
-        )}
-
         {/* Destination */}
         <Pressable
           style={({ pressed }) => [
@@ -591,6 +577,17 @@ export function SearchBar({ onSearch, selectedCategory = 'all' }: SearchBarProps
           </Text>
           <Text style={[styles.value, isMobile && styles.valueMobile]} numberOfLines={1}>{guests}</Text>
         </Pressable>
+
+        {/* Clear Button - In flex flow, before search button */}
+        {hasActiveFilters && (
+          <Pressable
+            style={[styles.clearButtonFlex, isMobile && styles.clearButtonFlexMobile]}
+            onPress={handleReset}
+            hitSlop={{ top: 10, right: 10, bottom: 10, left: 10 }}
+          >
+            <Feather name="x" size={isMobile ? 14 : 16} color={BrandColors.gray.dark} />
+          </Pressable>
+        )}
 
         {/* Search Button */}
         <Pressable style={[styles.searchButton, isMobile && styles.searchButtonMobile]} onPress={handleSearch}>
@@ -1132,24 +1129,26 @@ const styles = StyleSheet.create({
     paddingRight: Space[2], // 8px - room for search button
     minHeight: TouchTarget.spacious, // 56px - iOS comfortable
   },
-  // Clear button - subtle, vertically centered before search button
-  clearButtonInline: {
-    position: 'absolute',
-    top: '50%',
-    right: 56, // Before search button on desktop
-    transform: [{ translateY: -14 }], // Center vertically (28/2)
-    width: 28,
-    height: 28,
+  // Clear button - flex item before search button (no absolute positioning)
+  clearButtonFlex: {
+    width: 32,
+    height: 32,
     borderRadius: Radius.full,
     backgroundColor: BrandColors.gray.light,
     alignItems: 'center',
     justifyContent: 'center',
-    zIndex: 10,
+    marginLeft: Space[2],
+    flexShrink: 0,
     ...Platform.select({
       web: {
         cursor: 'pointer',
       },
     }),
+  },
+  clearButtonFlexMobile: {
+    width: 28,
+    height: 28,
+    marginLeft: Space[1],
   },
   // Field container
   field: {

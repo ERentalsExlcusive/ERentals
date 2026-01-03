@@ -81,14 +81,14 @@ export default function CreatorHubScreen() {
             What's Coming
           </Text>
 
-          <View style={styles.featureCards}>
+          <View style={[styles.featureCards, isMobile && styles.featureCardsMobile]}>
             {/* For Travelers */}
             <View style={[styles.card, isMobile && styles.cardMobile]}>
               <View style={styles.cardIcon}>
                 <Feather name="compass" size={28} color={BrandColors.secondary} />
               </View>
               <Text style={styles.cardTitle}>For Travelers</Text>
-              <Text style={styles.cardDescription}>
+              <Text style={[styles.cardDescription, isMobile && styles.cardDescriptionMobile]}>
                 Browse creator profiles like social feeds. Save your favorite creators.
                 Discover luxury stays through stunning visual storytelling.
               </Text>
@@ -100,7 +100,7 @@ export default function CreatorHubScreen() {
                 <Feather name="camera" size={28} color={BrandColors.secondary} />
               </View>
               <Text style={styles.cardTitle}>For Creators</Text>
-              <Text style={styles.cardDescription}>
+              <Text style={[styles.cardDescription, isMobile && styles.cardDescriptionMobile]}>
                 Showcase your portfolio. Track performance metrics. Get discovered by
                 property owners seeking premium content.
               </Text>
@@ -112,7 +112,7 @@ export default function CreatorHubScreen() {
                 <Feather name="home" size={28} color={BrandColors.secondary} />
               </View>
               <Text style={styles.cardTitle}>For Owners</Text>
-              <Text style={styles.cardDescription}>
+              <Text style={[styles.cardDescription, isMobile && styles.cardDescriptionMobile]}>
                 Browse verified creators. Review portfolios and analytics.
                 Book creators for professional property shoots.
               </Text>
@@ -148,7 +148,7 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   scrollContent: {
-    paddingBottom: 100,
+    paddingBottom: Platform.OS === 'web' ? 100 : 120,
     width: '100%',
   },
   hero: {
@@ -159,9 +159,9 @@ const styles = StyleSheet.create({
     backgroundColor: BrandColors.white,
   },
   heroMobile: {
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.xxl * 1.5,
-    paddingBottom: Spacing.xxl * 1.5,
+    paddingHorizontal: Spacing.lg,
+    paddingTop: Spacing.xxl * 3,
+    paddingBottom: Spacing.xxl,
   },
   iconContainer: {
     position: 'relative',
@@ -250,6 +250,7 @@ const styles = StyleSheet.create({
   featuresMobile: {
     flexDirection: 'column',
     alignItems: 'stretch',
+    gap: Spacing.sm,
   },
   featurePill: {
     flexDirection: 'row',
@@ -288,11 +289,16 @@ const styles = StyleSheet.create({
     fontSize: 28,
   },
   featureCards: {
-    flexDirection: Platform.OS === 'web' ? 'row' : 'column',
+    flexDirection: 'row',
+    flexWrap: 'wrap',
     gap: Spacing.xl,
     maxWidth: 1200,
     width: '100%',
     alignSelf: 'center',
+  },
+  featureCardsMobile: {
+    flexDirection: 'column',
+    gap: Spacing.lg,
   },
   card: {
     flex: 1,
@@ -331,6 +337,10 @@ const styles = StyleSheet.create({
     color: BrandColors.gray.dark,
     textAlign: 'center',
   },
+  cardDescriptionMobile: {
+    fontSize: 14,
+    lineHeight: 24,
+  },
   ctaSection: {
     paddingHorizontal: Spacing.xxl * 2,
     paddingVertical: Spacing.xxl * 3,
@@ -339,7 +349,8 @@ const styles = StyleSheet.create({
   },
   ctaSectionMobile: {
     paddingHorizontal: Spacing.lg,
-    paddingVertical: Spacing.xxl * 2,
+    paddingTop: Spacing.xxl * 2,
+    paddingBottom: Spacing.xxl * 2.5,
   },
   ctaTitle: {
     fontSize: 32,

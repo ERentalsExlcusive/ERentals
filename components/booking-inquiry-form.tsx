@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -30,6 +30,7 @@ interface BookingInquiryFormProps {
   propertyName: string;
   propertyId: number;
   price?: string;
+  nightlyRate?: number; // Numeric nightly rate for calculations
   checkIn?: Date | null;
   checkOut?: Date | null;
   guests?: number;
@@ -60,6 +61,7 @@ export function BookingInquiryForm({
   propertyName,
   propertyId,
   price,
+  nightlyRate,
   checkIn: initialCheckIn,
   checkOut: initialCheckOut,
   guests: initialGuests,
@@ -87,6 +89,39 @@ export function BookingInquiryForm({
   const [errors, setErrors] = useState<FormErrors>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
+
+  // Calculate nights and price
+  const priceCalculation = useMemo(() => {
+    if (!checkIn || !checkOut) return null;
+
+    const msPerDay = 1000 * 60 * 60 * 24;
+    const nights = Math.round((checkOut.getTime() - checkIn.getTime()) / msPerDay);
+
+    if (nights <= 0) return null;
+
+    // If we have a numeric nightlyRate, calculate total
+    if (nightlyRate && nightlyRate > 0) {
+      const subtotal = nightlyRate * nights;
+      return {
+        nights,
+        nightlyRate,
+        subtotal,
+        total: subtotal, // Could add fees here if needed
+      };
+    }
+
+    // Just return nights if no rate available
+    return { nights, nightlyRate: null, subtotal: null, total: null };
+  }, [checkIn, checkOut, nightlyRate]);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency: 'USD',
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(amount);
+  };
 
   const handleDatesChange = (start: Date | null, end: Date | null) => {
     setCheckIn(start);
@@ -134,7 +169,7 @@ export function BookingInquiryForm({
     setSubmitError(null);
 
     try {
-      // Prepare payload for GoHighLevel webhook
+      // Prepare payload for /api/inquiry endpoint
       const payload = {
         // Contact info
         firstName: formData.firstName.trim(),
@@ -143,43 +178,32 @@ export function BookingInquiryForm({
         phone: formData.phone.trim(),
         preferWhatsApp: formData.preferWhatsApp,
 
-        // Booking details
+        // Property info
         propertyName,
         propertyId,
-        price: price || 'Contact for pricing',
-        checkIn: formatDate(checkIn),
-        checkOut: formatDate(checkOut),
-        guests: guests || 'Flexible',
-        message: formData.message.trim(),
+        propertyCategory: 'villa' as const,
 
-        // Metadata
+        // Booking details (ISO format for dates)
+        checkIn: checkIn ? checkIn.toISOString().split('T')[0] : undefined,
+        checkOut: checkOut ? checkOut.toISOString().split('T')[0] : undefined,
+        guests: guests || undefined,
+        message: formData.message.trim() || undefined,
+        budget: price || undefined,
+
+        // Attribution
         source: 'ERentals Exclusive App',
-        submittedAt: new Date().toISOString(),
-
-        // UTM Attribution
-        utm_source: attribution?.utm_source || '',
-        utm_medium: attribution?.utm_medium || '',
-        utm_campaign: attribution?.utm_campaign || '',
-        utm_content: attribution?.utm_content || '',
-        utm_term: attribution?.utm_term || '',
-        er_id: attribution?.er_id || '',
-        creator_id: attribution?.creator_id || '',
-
-        // Tags for GHL
-        tags: [
-          'website-lead',
-          'villa-inquiry',
-          attribution?.utm_source ? `source-${attribution.utm_source}` : null,
-          attribution?.creator_id ? `creator-${attribution.creator_id}` : null,
-        ].filter(Boolean),
+        utm_source: attribution?.utm_source,
+        utm_medium: attribution?.utm_medium,
+        utm_campaign: attribution?.utm_campaign,
+        utm_content: attribution?.utm_content,
+        utm_term: attribution?.utm_term,
+        er_id: attribution?.er_id,
+        creator_id: attribution?.creator_id,
       };
 
-      // Use our API endpoint to submit lead (handles CORS and GHL forwarding)
-      const apiUrl = '/api/lead';
-
-      let webhookFailed = false;
+      let hasWarning = false;
       try {
-        const response = await fetch(apiUrl, {
+        const response = await fetch('/api/inquiry', {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
@@ -188,26 +212,25 @@ export function BookingInquiryForm({
         });
 
         const result = await response.json();
-        console.log('Lead API response:', result);
+        console.log('Inquiry API response:', result);
 
-        if (!response.ok || !result.success) {
-          console.warn('Lead submission issue:', result);
-          webhookFailed = true;
-        } else if (!result.webhookDelivered) {
-          // API succeeded but webhook delivery failed
-          console.warn('Lead saved but webhook delivery failed');
-          webhookFailed = true;
+        if (!response.ok || !result.ok) {
+          console.warn('Inquiry submission issue:', result);
+          hasWarning = true;
+        } else if (result.warning) {
+          console.warn('Inquiry warning:', result.warning);
+          hasWarning = true;
         }
       } catch (apiError) {
         // Log but don't fail - still show confirmation with warning
-        console.warn('Lead API error, but continuing:', apiError);
-        webhookFailed = true;
+        console.warn('Inquiry API error, but continuing:', apiError);
+        hasWarning = true;
       }
 
       // Log for development
       console.log('Booking inquiry submitted:', payload);
 
-      onSuccess(webhookFailed);
+      onSuccess(hasWarning);
     } catch (error) {
       console.error('Submission error:', error);
       setSubmitError('Unable to submit your inquiry. Please try again or contact us directly.');
@@ -294,6 +317,41 @@ export function BookingInquiryForm({
                 )}
               </View>
             </View>
+
+            {/* Price Breakdown - Shows when dates are selected */}
+            {priceCalculation && (
+              <View style={styles.priceBreakdown}>
+                <Text style={styles.priceBreakdownTitle}>Price Details</Text>
+                {priceCalculation.nightlyRate ? (
+                  <>
+                    <View style={styles.priceRow}>
+                      <Text style={styles.priceRowLabel}>
+                        {formatCurrency(priceCalculation.nightlyRate)} × {priceCalculation.nights} night{priceCalculation.nights !== 1 ? 's' : ''}
+                      </Text>
+                      <Text style={styles.priceRowValue}>
+                        {formatCurrency(priceCalculation.subtotal!)}
+                      </Text>
+                    </View>
+                    <View style={styles.priceTotalRow}>
+                      <Text style={styles.priceTotalLabel}>Total</Text>
+                      <Text style={styles.priceTotalValue}>
+                        {formatCurrency(priceCalculation.total!)}
+                      </Text>
+                    </View>
+                    <Text style={styles.priceNote}>
+                      Final price may vary based on availability and season
+                    </Text>
+                  </>
+                ) : (
+                  <View style={styles.priceRow}>
+                    <Text style={styles.priceRowLabel}>
+                      {priceCalculation.nights} night{priceCalculation.nights !== 1 ? 's' : ''}
+                    </Text>
+                    <Text style={styles.priceRowValue}>Contact for pricing</Text>
+                  </View>
+                )}
+              </View>
+            )}
 
             {/* Form Fields */}
             <View style={styles.form}>
@@ -507,14 +565,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     padding: Space[4],
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: 1300,
+      },
+    }),
   },
   modal: {
     backgroundColor: BrandColors.white,
     borderRadius: Radius.xl,
     width: '100%',
     maxWidth: 480,
-    maxHeight: '90%',
+    maxHeight: '85vh',
     ...Shadow.xl,
+    ...Platform.select({
+      web: {
+        maxHeight: '85vh',
+      },
+    }),
   },
   header: {
     flexDirection: 'row',
@@ -713,6 +786,70 @@ const styles = StyleSheet.create({
   summaryValuePlaceholder: {
     color: BrandColors.gray.medium,
     fontWeight: FontWeight.normal,
+  },
+  // Price breakdown styles
+  priceBreakdown: {
+    backgroundColor: BrandColors.white,
+    borderWidth: 1,
+    borderColor: BrandColors.gray.border,
+    borderRadius: Radius.lg,
+    padding: Space[4],
+    marginBottom: Space[6],
+  },
+  priceBreakdownTitle: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+    marginBottom: Space[3],
+    paddingBottom: Space[2],
+    borderBottomWidth: 1,
+    borderBottomColor: BrandColors.gray.border,
+  },
+  priceRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingVertical: Space[2],
+  },
+  priceRowLabel: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    color: BrandColors.gray.dark,
+  },
+  priceRowValue: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    fontWeight: FontWeight.medium,
+    color: BrandColors.black,
+  },
+  priceTotalRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingTop: Space[3],
+    marginTop: Space[2],
+    borderTopWidth: 1,
+    borderTopColor: BrandColors.gray.border,
+  },
+  priceTotalLabel: {
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
+    color: BrandColors.black,
+  },
+  priceTotalValue: {
+    fontSize: FontSize.lg,
+    lineHeight: LineHeight.lg,
+    fontWeight: FontWeight.bold,
+    color: BrandColors.black,
+  },
+  priceNote: {
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    color: BrandColors.gray.medium,
+    marginTop: Space[3],
+    fontStyle: 'italic',
   },
   // Picker overlay and modal styles
   pickerOverlay: {

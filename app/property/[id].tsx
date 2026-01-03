@@ -1,7 +1,7 @@
 import { StyleSheet, View, Text, ScrollView, Pressable, Platform, useWindowDimensions, Modal } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { useState, useEffect, useRef } from 'react';
-import { getRentals, getRentalGallery, GalleryImage, submitCharterInquiry } from '@/services/api';
+import { getRentals, getRentalGallery, GalleryImage } from '@/services/api';
 import { Rental } from '@/types/rental';
 import { BrandColors, Spacing } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow, ZIndex, Container, TouchTarget } from '@/constants/design-tokens';
@@ -93,6 +93,18 @@ function getEditorialDescription(rental: Rental): string {
   const descriptor = categoryDescriptors[category]?.[0] || 'An exceptional retreat';
 
   return `${descriptor} set against ${locale}. Every detail has been considered, every element curated. This is the art of living, distilled to its essence.`;
+}
+
+// Parse nightly rate from displayPrice string (e.g., "From $269 USD per night" -> 269)
+function parseNightlyRate(displayPrice?: string): number | undefined {
+  if (!displayPrice) return undefined;
+  // Match price patterns like $269, $1,500, $2,500.00
+  const match = displayPrice.match(/\$(\d+(?:,\d+)?(?:\.\d+)?)/);
+  if (match) {
+    // Remove commas and parse as float
+    return parseFloat(match[1].replace(/,/g, ''));
+  }
+  return undefined;
 }
 
 // Generate location editorial copy
@@ -396,6 +408,7 @@ export default function PropertyDetailScreen() {
               <BookingCard
                 price={propertyData?.displayPrice}
                 minStay={propertyData?.minStayNights}
+                category={propertyData?.category}
                 onInquire={() => setShowInquiryForm(true)}
                 blockedRanges={blockedRanges}
                 isLoadingAvailability={isLoadingAvailability}
@@ -412,6 +425,7 @@ export default function PropertyDetailScreen() {
       {isMobile && (
         <BookingBottomBar
           price={propertyData?.displayPrice}
+          category={propertyData?.category}
           onInquire={() => setShowInquiryForm(true)}
           hasAvailability={blockedRanges ? blockedRanges.length === 0 : undefined}
           isLoadingAvailability={isLoadingAvailability}
@@ -431,7 +445,7 @@ export default function PropertyDetailScreen() {
             <View style={styles.charterModalContent}>
               <View style={styles.charterModalHeader}>
                 <Text style={styles.charterModalTitle}>
-                  {rentalCategory === 'yacht' ? 'Request Charter' : 'Request Booking'}
+                  {rentalCategory === 'yacht' ? 'Request Charter' : 'Request Transfer'}
                 </Text>
                 <Pressable
                   style={styles.charterModalClose}
@@ -450,32 +464,58 @@ export default function PropertyDetailScreen() {
                 onSubmit={async (data: CharterBookingData) => {
                   setIsSubmittingCharter(true);
                   try {
-                    const result = await submitCharterInquiry({
-                      propertyName: rental.title.replace(' – Preview', '').replace(' &#8211; Preview', ''),
-                      propertyCategory: rentalCategory as 'yacht' | 'transport',
-                      date: data.date.toISOString(),
-                      duration: data.duration,
-                      departureTime: data.departureTime,
-                      guests: data.guests,
-                      name: data.name,
+                    // Split name into first/last
+                    const nameParts = data.name.trim().split(/\s+/);
+                    const firstName = nameParts[0] || '';
+                    const lastName = nameParts.slice(1).join(' ') || '';
+
+                    // Build payload for /api/inquiry
+                    const payload = {
+                      firstName,
+                      lastName,
                       email: data.email,
                       phone: data.phone,
+                      propertyName: rental.title.replace(' – Preview', '').replace(' &#8211; Preview', ''),
+                      propertyId: rental.id,
+                      propertyCategory: rentalCategory as 'yacht' | 'transport',
+                      // Yacht/Transport specific
+                      charterDate: data.date.toISOString().split('T')[0],
+                      charterTime: data.departureTime,
+                      charterDuration: data.duration,
+                      guests: data.guests,
                       occasion: data.occasion,
-                      notes: data.notes,
+                      message: data.notes,
+                      // Transport specific
+                      pickupLocation: data.pickup,
+                      dropoffLocation: data.dropoff,
+                      // Attribution
                       source: 'website-charter-form',
-                      attribution: searchState.attribution,
+                      utm_source: searchState.attribution?.utm_source,
+                      utm_medium: searchState.attribution?.utm_medium,
+                      utm_campaign: searchState.attribution?.utm_campaign,
+                      utm_content: searchState.attribution?.utm_content,
+                      utm_term: searchState.attribution?.utm_term,
+                      er_id: searchState.attribution?.er_id,
+                      creator_id: searchState.attribution?.creator_id,
+                    };
+
+                    const response = await fetch('/api/inquiry', {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(payload),
                     });
 
-                    if (result.success) {
-                      handleInquirySuccess(false);
+                    const result = await response.json();
+                    console.log('Charter inquiry response:', result);
+
+                    if (response.ok && result.ok) {
+                      handleInquirySuccess(!!result.warning);
                     } else {
-                      // Show success with warning - webhook may have failed
-                      console.warn('Charter submission result:', result);
+                      console.warn('Charter submission issue:', result);
                       handleInquirySuccess(true);
                     }
                   } catch (error) {
                     console.error('Charter submission error:', error);
-                    // Show success with warning to not block user experience
                     handleInquirySuccess(true);
                   } finally {
                     setIsSubmittingCharter(false);
@@ -489,6 +529,7 @@ export default function PropertyDetailScreen() {
             propertyName={rental.title.replace(' – Preview', '').replace(' &#8211; Preview', '')}
             propertyId={rental.id}
             price={propertyData?.displayPrice}
+            nightlyRate={parseNightlyRate(propertyData?.displayPrice)}
             checkIn={searchState.checkIn}
             checkOut={searchState.checkOut}
             guests={searchState.guests}
@@ -865,20 +906,30 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.normal,
   },
 
-  // Charter Modal Styles
+  // Charter Modal Styles - Unified with Villa modal spacing
   charterModalContainer: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     padding: Space[4],
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: ZIndex.modal,
+      },
+    }),
   },
   charterModalContent: {
     backgroundColor: BrandColors.white,
     borderRadius: Radius.xl,
-    width: '100%',
+    width: Platform.select({ web: 'min(92vw, 520px)', default: '100%' }) as any,
     maxWidth: 520,
-    maxHeight: '90%',
+    maxHeight: Platform.select({ web: 'calc(100dvh - 32px)', default: '90%' }) as any,
     overflow: 'hidden',
     ...Shadow.xl,
   },
@@ -887,7 +938,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: Space[6],
-    paddingVertical: Space[4],
+    paddingVertical: Space[5],
     borderBottomWidth: 1,
     borderBottomColor: BrandColors.gray.border,
   },

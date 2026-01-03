@@ -23,9 +23,40 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
   const { isMobile, width } = useResponsive();
   const [currentIndex, setCurrentIndex] = useState(0);
   const [fullscreenVisible, setFullscreenVisible] = useState(false);
+  const [failedImages, setFailedImages] = useState<Set<number>>(new Set());
   const scrollViewRef = useRef<ScrollView>(null);
 
-  if (images.length === 0) return null;
+  if (images.length === 0) {
+    return (
+      <View style={[styles.container, styles.placeholderContainer]}>
+        <View style={styles.placeholderIcon}>
+          <Feather name="image" size={48} color={BrandColors.gray.medium} />
+        </View>
+        <Text style={styles.placeholderText}>Gallery Coming Soon</Text>
+        <Text style={styles.placeholderSubtext}>Contact concierge for property photos</Text>
+      </View>
+    );
+  }
+
+  const handleImageError = (imageId: number) => {
+    setFailedImages(prev => new Set(prev).add(imageId));
+  };
+
+  // Filter out failed images
+  const validImages = images.filter(img => !failedImages.has(img.id));
+
+  // If all images failed, show placeholder
+  if (validImages.length === 0) {
+    return (
+      <View style={[styles.container, styles.placeholderContainer]}>
+        <View style={styles.placeholderIcon}>
+          <Feather name="image" size={48} color={BrandColors.gray.medium} />
+        </View>
+        <Text style={styles.placeholderText}>Gallery Coming Soon</Text>
+        <Text style={styles.placeholderSubtext}>Contact concierge for property photos</Text>
+      </View>
+    );
+  }
 
   const handleScroll = (event: any) => {
     const contentOffsetX = event.nativeEvent.contentOffset.x;
@@ -42,12 +73,12 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
   };
 
   const nextImage = () => {
-    const nextIndex = (currentIndex + 1) % images.length;
+    const nextIndex = (currentIndex + 1) % validImages.length;
     scrollToIndex(nextIndex);
   };
 
   const prevImage = () => {
-    const prevIndex = (currentIndex - 1 + images.length) % images.length;
+    const prevIndex = (currentIndex - 1 + validImages.length) % validImages.length;
     scrollToIndex(prevIndex);
   };
 
@@ -64,7 +95,7 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
           scrollEventThrottle={16}
           style={styles.scrollView}
         >
-          {images.map((image) => (
+          {validImages.map((image) => (
             <Pressable
               key={image.id}
               onPress={() => setFullscreenVisible(true)}
@@ -74,13 +105,14 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
                 source={{ uri: image.sizes.large || image.url }}
                 style={styles.image}
                 resizeMode="cover"
+                onError={() => handleImageError(image.id)}
               />
             </Pressable>
           ))}
         </ScrollView>
 
         {/* Navigation Arrows */}
-        {images.length > 1 && (
+        {validImages.length > 1 && (
           <>
             <Pressable
               style={[styles.arrow, styles.arrowLeft, isMobile && styles.arrowMobile]}
@@ -102,7 +134,7 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
           <View style={styles.counterBadge}>
             <Feather name="image" size={14} color={BrandColors.white} />
             <Text style={styles.counterText}>
-              {currentIndex + 1} / {images.length}
+              {currentIndex + 1} / {validImages.length}
             </Text>
           </View>
         </View>
@@ -116,9 +148,9 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
         </Pressable>
 
         {/* Pagination Dots */}
-        {images.length > 1 && images.length <= 10 && (
+        {validImages.length > 1 && validImages.length <= 10 && (
           <View style={styles.pagination}>
-            {images.map((_, index) => (
+            {validImages.map((_, index) => (
               <Pressable
                 key={index}
                 onPress={() => scrollToIndex(index)}
@@ -145,7 +177,7 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
             pagingEnabled
             showsHorizontalScrollIndicator={false}
           >
-            {images.map((image) => (
+            {validImages.map((image) => (
               <View
                 key={image.id}
                 style={[styles.fullscreenImageContainer, { width: Dimensions.get('window').width }]}
@@ -154,6 +186,7 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
                   source={{ uri: image.url }}
                   style={styles.fullscreenImage}
                   resizeMode="contain"
+                  onError={() => handleImageError(image.id)}
                 />
               </View>
             ))}
@@ -178,6 +211,31 @@ const styles = StyleSheet.create({
     width: '100%',
     height: Platform.select({ web: 600, default: 400 }),
     backgroundColor: BrandColors.black,
+  },
+  placeholderContainer: {
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: BrandColors.gray.light,
+  },
+  placeholderIcon: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: BrandColors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  placeholderText: {
+    fontSize: 18,
+    color: BrandColors.black,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  placeholderSubtext: {
+    fontSize: 14,
+    color: BrandColors.gray.medium,
+    fontWeight: '400',
   },
   scrollView: {
     flex: 1,

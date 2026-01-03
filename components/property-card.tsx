@@ -3,9 +3,31 @@ import { useState } from 'react';
 import { Feather } from '@expo/vector-icons';
 import { Rental } from '@/types/rental';
 import { BrandColors, Spacing } from '@/constants/theme';
-import { getPropertyDataBySlug } from '@/data/property-data';
+import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/constants/design-tokens';
+import { getPropertyDataBySlug, PropertyData } from '@/data/property-data';
 import { FavoritePromptModal } from './favorite-prompt-modal';
 import { AmenityList } from './amenity-list';
+
+// Format price label based on asset category
+function formatPriceLabel(propertyData: PropertyData | null): string {
+  if (!propertyData?.displayPrice) return 'Price Upon Request';
+
+  // Extract the numeric price from displayPrice (e.g., "From $500 USD per night" -> "$500")
+  const priceMatch = propertyData.displayPrice.match(/\$[\d,]+(?:\.\d{2})?/);
+  const priceAmount = priceMatch ? priceMatch[0] : propertyData.displayPrice;
+
+  switch (propertyData.category) {
+    case 'yacht':
+      return `From ${priceAmount} / day`;
+    case 'transport':
+      return `From ${priceAmount} · route-based`;
+    case 'villa':
+    case 'property':
+    case 'hotel':
+    default:
+      return `From ${priceAmount} / night`;
+  }
+}
 
 interface PropertyCardProps {
   rental: Rental;
@@ -32,11 +54,9 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
   };
 
   const handleEmailSubmit = async (email: string) => {
-    // TODO: Save email and favorite to backend/local storage
-    console.log('User email:', email, 'Property:', rental.slug);
     setIsFavorited(true);
     setShowFavoriteModal(false);
-    // In production, you would save this to a backend or local storage
+    // Future: Save email and favorite to backend/local storage
   };
 
   return (
@@ -131,7 +151,7 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
 
         {/* Pricing */}
         <View style={styles.pricing}>
-          <Text style={styles.price}>{propertyData?.displayPrice || 'Price Upon Request'}</Text>
+          <Text style={styles.price}>{formatPriceLabel(propertyData)}</Text>
         </View>
       </View>
 
@@ -148,14 +168,10 @@ export function PropertyCard({ rental, onPress }: PropertyCardProps) {
 const styles = StyleSheet.create({
   card: {
     backgroundColor: BrandColors.white,
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     overflow: 'visible',
-    marginBottom: Spacing.lg,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 2,
+    marginBottom: Space[6],
+    ...Shadow.base,
     ...Platform.select({
       web: {
         transition: 'all 0.4s cubic-bezier(0.4, 0, 0.2, 1)',
@@ -182,7 +198,7 @@ const styles = StyleSheet.create({
     width: '100%',
     aspectRatio: 1, // Square!
     position: 'relative',
-    borderRadius: 12,
+    borderRadius: Radius.lg,
     overflow: 'hidden',
   },
   image: {
@@ -207,82 +223,88 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   placeholderText: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.gray.medium,
   },
   wishlistButton: {
     position: 'absolute',
-    top: 12,
-    right: 12,
-    width: 32,
-    height: 32,
-    borderRadius: 16,
+    top: Space[3],
+    right: Space[3],
+    width: Space[8],
+    height: Space[8],
+    borderRadius: Radius.full,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',
     justifyContent: 'center',
   },
   categoryBadge: {
     position: 'absolute',
-    bottom: 12,
-    left: 12,
+    bottom: Space[3],
+    left: Space[3],
     backgroundColor: BrandColors.white,
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 6,
+    paddingHorizontal: Space[3],
+    paddingVertical: Space[2],
+    borderRadius: Radius.md,
   },
   categoryText: {
-    fontSize: 11,
-    fontWeight: '600',
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   info: {
-    paddingTop: Spacing.sm,
+    paddingTop: Space[3],
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-start',
-    marginBottom: 4,
+    marginBottom: Space[1],
   },
   title: {
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: FontSize.md,
+    lineHeight: LineHeight.md,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
     flex: 1,
   },
   location: {
-    fontSize: 14,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.gray.dark,
-    marginBottom: Spacing.xs,
+    marginBottom: Space[2],
   },
   details: {
     flexDirection: 'row',
-    gap: Spacing.md,
-    marginBottom: Spacing.xs,
+    gap: Space[4],
+    marginBottom: Space[2],
   },
   detailItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
+    gap: Space[1],
   },
   detailText: {
-    fontSize: 13,
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
     color: BrandColors.gray.medium,
   },
   amenitiesContainer: {
-    marginTop: Spacing.xs,
-    marginBottom: Spacing.xs,
+    marginTop: Space[2],
+    marginBottom: Space[2],
   },
   pricing: {
     flexDirection: 'row',
     alignItems: 'baseline',
-    marginTop: Spacing.xs,
+    marginTop: Space[2],
   },
   price: {
-    fontSize: 14,
-    fontWeight: '600',
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
   },
 });

@@ -2,6 +2,9 @@
   "name": "erentals-exclusive",
   "main": "expo-router/entry",
   "version": "1.0.0",
+  "engines": {
+    "node": "20.x"
+  },
   "scripts": {
     "start": "expo start",
     "reset-project": "node ./scripts/reset-project.js",
@@ -30,6 +33,7 @@
     "expo-symbols": "~1.0.8",
     "expo-system-ui": "~6.0.9",
     "expo-web-browser": "~15.0.10",
+    "ical.js": "^2.2.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
     "react-native": "0.81.5",
@@ -42,8 +46,10 @@
   },
   "devDependencies": {
     "@types/react": "~19.1.0",
+    "@vercel/node": "^5.5.16",
     "eslint": "^9.25.0",
     "eslint-config-expo": "~10.0.0",
+    "puppeteer": "^24.34.0",
     "typescript": "~5.9.2"
   },
   "private": true

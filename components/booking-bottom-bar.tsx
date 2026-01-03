@@ -6,20 +6,34 @@ import { Feather } from '@expo/vector-icons';
 
 interface BookingBottomBarProps {
   price?: string;
+  category?: 'villa' | 'yacht' | 'transport' | 'property' | 'hotel';
   onInquire: () => void;
   hasAvailability?: boolean;
   isLoadingAvailability?: boolean;
 }
 
-export function BookingBottomBar({ price, onInquire, hasAvailability, isLoadingAvailability }: BookingBottomBarProps) {
+export function BookingBottomBar({ price, category = 'villa', onInquire, hasAvailability, isLoadingAvailability }: BookingBottomBarProps) {
   const insets = useSafeAreaInsets();
 
-  // Clean up price - remove "From ", "per night", "/ night" and any trailing slashes
+  // Clean up price - extract just the dollar amount
   const cleanPrice = price
     ?.replace('From ', '')
-    ?.replace(/\s*(per night|\/\s*night)\s*$/i, '')
+    ?.replace(/\s*(USD\s*)?(per\s*)?(night|day)\s*$/i, '')
     ?.replace(/\s*\/\s*$/, '')
+    ?.replace(/\s*·.*$/, '') // Remove route-based suffix
     ?.trim();
+
+  // Get the price unit based on category
+  const getPriceUnit = () => {
+    switch (category) {
+      case 'yacht':
+        return ' / day';
+      case 'transport':
+        return ''; // No unit suffix for transport
+      default:
+        return ' / night';
+    }
+  };
 
   return (
     <View style={[styles.container, {
@@ -31,8 +45,11 @@ export function BookingBottomBar({ price, onInquire, hasAvailability, isLoadingA
           {cleanPrice && (
             <View style={styles.priceSection}>
               <Text style={styles.priceAmount}>{cleanPrice}</Text>
-              <Text style={styles.priceUnit}> / night</Text>
+              <Text style={styles.priceUnit}>{getPriceUnit()}</Text>
             </View>
+          )}
+          {category === 'transport' && (
+            <Text style={styles.availabilityText}>Route-based pricing</Text>
           )}
           {!isLoadingAvailability && hasAvailability !== undefined && (
             <View style={styles.availabilityIndicator}>

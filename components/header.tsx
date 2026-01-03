@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet, Pressable, Platform, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { BrandColors, Spacing } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius, ZIndex } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
 
 interface HeaderProps {
@@ -59,12 +60,10 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
           </View>
         )}
 
-        {/* Right side - Owner Portal - Hidden on mobile */}
-        {!isMobile && (
-          <Pressable style={styles.ownerPortal} onPress={() => router.push('/owner-portal')}>
-            <Text style={styles.ownerPortalText}>Owner Portal</Text>
-          </Pressable>
-        )}
+        {/* Right side - Owner Portal */}
+        <Pressable style={[styles.ownerPortal, isMobile && styles.ownerPortalMobile]} onPress={() => router.push('/owner-portal')}>
+          <Text style={[styles.ownerPortalText, isMobile && styles.ownerPortalTextMobile]}>Owner Portal</Text>
+        </Pressable>
       </View>
     </View>
   );
@@ -76,7 +75,7 @@ const styles = StyleSheet.create({
     top: 0,
     left: 0,
     right: 0,
-    zIndex: 100,
+    zIndex: ZIndex.sticky,
     backgroundColor: 'rgba(255, 255, 255, 0.85)',
     borderBottomWidth: 1,
     borderBottomColor: 'rgba(0, 0, 0, 0.05)',
@@ -93,23 +92,23 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingLeft: Spacing.md,
-    paddingRight: Spacing.xxl,
-    paddingVertical: Spacing.md,
+    paddingLeft: Space[4],
+    paddingRight: Space[12],
+    paddingVertical: Space[4],
     maxWidth: 1400,
     marginHorizontal: 'auto',
     width: '100%',
   },
   containerMobile: {
-    paddingLeft: Spacing.sm,
-    paddingRight: Spacing.sm,
-    paddingVertical: Spacing.sm,
+    paddingLeft: Space[2],
+    paddingRight: Space[2],
+    paddingVertical: Space[2],
   },
   logoContainer: {
     height: 40,
     justifyContent: 'center',
     marginRight: 'auto',
-    paddingRight: Spacing.xxl,
+    paddingRight: Space[12],
   },
   logoImage: {
     width: 50,
@@ -117,30 +116,40 @@ const styles = StyleSheet.create({
   },
   nav: {
     flexDirection: 'row',
-    gap: Spacing.lg,
+    gap: Space[6],
     flex: 1,
     justifyContent: 'center',
     display: Platform.OS === 'web' ? 'flex' : 'none',
   },
   navLink: {
-    fontSize: 14,
-    fontWeight: '500',
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.medium,
     color: BrandColors.black,
     opacity: 0.8,
   },
   ownerPortal: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    borderRadius: 6,
+    paddingHorizontal: Space[4],
+    paddingVertical: Space[2],
+    borderRadius: Radius.md,
     borderWidth: 1,
     borderColor: BrandColors.gray.border,
     backgroundColor: BrandColors.white,
   },
+  ownerPortalMobile: {
+    paddingHorizontal: Space[2],
+    paddingVertical: Space[2],
+  },
   ownerPortalText: {
-    fontSize: 12,
-    fontWeight: '600',
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
+    fontWeight: FontWeight.semibold,
     color: BrandColors.black,
     letterSpacing: 0.5,
     textTransform: 'uppercase',
+  },
+  ownerPortalTextMobile: {
+    fontSize: 10,
+    letterSpacing: 0.3,
   },
 });

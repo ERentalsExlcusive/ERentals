@@ -119,23 +119,39 @@ export function BottomSheet({ visible, onClose, title, children, height = 'auto'
 }
 
 const styles = StyleSheet.create({
-  // Desktop backdrop
+  // Desktop backdrop - ensure full coverage over other modals
   backdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'center',
     alignItems: 'center',
     ...Platform.select({
       web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: ZIndex.modal + 100, // Higher than other modals
         backdropFilter: 'blur(8px)',
       },
     }),
   },
-  // Mobile backdrop
+  // Mobile backdrop - ensure full coverage
   mobileBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.4)',
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
     justifyContent: 'flex-end',
+    ...Platform.select({
+      web: {
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        zIndex: ZIndex.modal + 100,
+      },
+    }),
   },
   sheet: {
     backgroundColor: BrandColors.white,

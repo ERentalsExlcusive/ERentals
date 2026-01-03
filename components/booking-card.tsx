@@ -12,18 +12,40 @@ interface BlockedRange {
 interface BookingCardProps {
   price?: string;
   minStay?: number;
+  category?: 'villa' | 'yacht' | 'transport' | 'property' | 'hotel';
   onInquire: () => void;
   blockedRanges?: BlockedRange[];
   isLoadingAvailability?: boolean;
 }
 
-export function BookingCard({ price, minStay, onInquire, blockedRanges, isLoadingAvailability }: BookingCardProps) {
-  // Clean up price - remove "From ", "per night", "/ night" and any trailing slashes
+export function BookingCard({ price, minStay, category = 'villa', onInquire, blockedRanges, isLoadingAvailability }: BookingCardProps) {
+  // Clean up price - extract just the dollar amount
   const cleanPrice = price
     ?.replace('From ', '')
-    ?.replace(/\s*(per night|\/\s*night)\s*$/i, '')
+    ?.replace(/\s*(USD\s*)?(per\s*)?(night|day)\s*$/i, '')
     ?.replace(/\s*\/\s*$/, '')
+    ?.replace(/\s*·.*$/, '') // Remove route-based suffix
     ?.trim();
+
+  // Get the price unit based on category
+  const getPriceUnit = () => {
+    switch (category) {
+      case 'yacht':
+        return ' / day';
+      case 'transport':
+        return ''; // No unit suffix for transport
+      default:
+        return ' / night';
+    }
+  };
+
+  // Get minimum stay label
+  const getMinStayLabel = () => {
+    if (!minStay) return null;
+    if (category === 'yacht') return `${minStay} hour minimum`;
+    if (category === 'transport') return null; // No min stay for transport
+    return `${minStay} night minimum`;
+  };
 
   return (
     <View style={styles.card}>
@@ -32,10 +54,13 @@ export function BookingCard({ price, minStay, onInquire, blockedRanges, isLoadin
         <View style={styles.priceSection}>
           <View style={styles.priceRow}>
             <Text style={styles.priceAmount}>{cleanPrice}</Text>
-            <Text style={styles.priceUnit}> / night</Text>
+            <Text style={styles.priceUnit}>{getPriceUnit()}</Text>
           </View>
-          {minStay && (
-            <Text style={styles.minStay}>{minStay} night minimum</Text>
+          {category === 'transport' && (
+            <Text style={styles.minStay}>Route-based pricing</Text>
+          )}
+          {getMinStayLabel() && category !== 'transport' && (
+            <Text style={styles.minStay}>{getMinStayLabel()}</Text>
           )}
         </View>
       )}

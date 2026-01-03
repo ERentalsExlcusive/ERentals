@@ -1,6 +1,7 @@
 import { View, Text, StyleSheet } from 'react-native';
 import { Feather } from '@expo/vector-icons';
 import { BrandColors, Spacing } from '@/constants/theme';
+import { Space, FontSize, LineHeight, FontWeight, Radius } from '@/constants/design-tokens';
 
 interface AmenityListProps {
   amenities: string[];
@@ -56,26 +57,28 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Spacing.sm,
-    marginTop: Spacing.sm,
+    gap: Space[2],
+    marginTop: Space[2],
   },
   amenityItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-    paddingHorizontal: 10,
+    gap: Space[2],
+    paddingVertical: Space[2],
+    paddingHorizontal: Space[3],
     backgroundColor: BrandColors.gray.light,
-    borderRadius: 6,
+    borderRadius: Radius.md,
   },
   amenityText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
     color: BrandColors.gray.dark,
-    fontWeight: '500',
+    fontWeight: FontWeight.medium,
   },
   moreText: {
-    fontSize: 12,
+    fontSize: FontSize.xs,
+    lineHeight: LineHeight.xs,
     color: BrandColors.gray.medium,
-    fontWeight: '600',
+    fontWeight: FontWeight.semibold,
   },
 });

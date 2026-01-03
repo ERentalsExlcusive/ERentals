@@ -26,6 +26,9 @@ export interface CharterBookingData {
   phone: string;
   occasion?: string;
   notes?: string;
+  // Transport-specific fields
+  pickup?: string;
+  dropoff?: string;
 }
 
 // Charter duration options
@@ -58,8 +61,8 @@ const DEPARTURE_TIMES = [
   { value: '18:00', label: '6:00 PM', period: 'Evening' },
 ];
 
-// Charter occasions
-const CHARTER_OCCASIONS = [
+// Yacht occasions (NOT for transport)
+const YACHT_OCCASIONS = [
   { value: 'celebration', label: 'Birthday/Celebration', icon: 'gift' },
   { value: 'corporate', label: 'Corporate Event', icon: 'briefcase' },
   { value: 'wedding', label: 'Wedding Party', icon: 'heart' },
@@ -67,6 +70,19 @@ const CHARTER_OCCASIONS = [
   { value: 'fishing', label: 'Fishing Trip', icon: 'anchor' },
   { value: 'leisure', label: 'Leisure', icon: 'smile' },
 ];
+
+// Extract just the dollar amount from displayPrice (remove all units/text)
+function cleanPriceAmount(price?: string): string | null {
+  if (!price) return null;
+  // Match the dollar amount: $1,234 or $1,234.56
+  const match = price.match(/\$[\d,]+(?:\.\d{2})?/);
+  return match ? match[0] : null;
+}
+
+// Get clean price label based on category
+function getPriceLabel(category: 'yacht' | 'transport'): string {
+  return category === 'yacht' ? 'per charter' : 'route-based pricing';
+}
 
 export function CharterBookingForm({
   propertyName,
@@ -79,6 +95,12 @@ export function CharterBookingForm({
   const { isMobile } = useResponsive();
   const durations = propertyCategory === 'yacht' ? YACHT_DURATIONS : TRANSPORT_DURATIONS;
 
+  const isYacht = propertyCategory === 'yacht';
+  const isTransport = propertyCategory === 'transport';
+
+  // Clean price - extract just the dollar amount
+  const cleanPrice = cleanPriceAmount(displayPrice);
+
   // Form state
   const [date, setDate] = useState<Date | null>(null);
   const [duration, setDuration] = useState('');
@@ -89,30 +111,44 @@ export function CharterBookingForm({
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [notes, setNotes] = useState('');
+  // Transport-specific
+  const [pickup, setPickup] = useState('');
+  const [dropoff, setDropoff] = useState('');
 
   // Modal states
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [showTimePicker, setShowTimePicker] = useState(false);
   const [showGuestPicker, setShowGuestPicker] = useState(false);
 
-  // Validation
+  // Validation - different for yacht vs transport
   const isValid = useMemo(() => {
-    return date && duration && departureTime && name.trim() && email.includes('@') && phone.length >= 10;
-  }, [date, duration, departureTime, name, email, phone]);
+    const hasContactInfo = name.trim() && email.includes('@') && phone.length >= 10;
+
+    if (isTransport) {
+      // Transport: pickup, dropoff, date, time, passengers
+      return hasContactInfo && date && departureTime && pickup.trim() && dropoff.trim();
+    } else {
+      // Yacht: charter_date, departure_time, duration, guests
+      return hasContactInfo && date && duration && departureTime;
+    }
+  }, [date, duration, departureTime, name, email, phone, isTransport, pickup, dropoff]);
 
   const handleSubmit = () => {
     if (!isValid || !date) return;
 
     onSubmit({
       date,
-      duration,
+      duration: isTransport ? 'transfer' : duration,
       departureTime,
       guests,
       name: name.trim(),
       email: email.trim(),
       phone: phone.trim(),
-      occasion: occasion || undefined,
+      occasion: isYacht ? (occasion || undefined) : undefined,
       notes: notes.trim() || undefined,
+      // Transport-specific
+      pickup: isTransport ? pickup.trim() : undefined,
+      dropoff: isTransport ? dropoff.trim() : undefined,
     });
   };
 
@@ -131,50 +167,79 @@ export function CharterBookingForm({
 
   return (
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
-      {/* Price Header */}
-      {displayPrice && (
+      {/* Price Header - Clean amount + category-specific label */}
+      {cleanPrice && (
         <View style={styles.priceHeader}>
-          <Text style={styles.priceText}>{displayPrice}</Text>
-          <Text style={styles.priceNote}>
-            {propertyCategory === 'yacht' ? 'per charter' : 'per day'}
-          </Text>
+          <View style={styles.priceRow}>
+            <Text style={styles.priceText}>{cleanPrice}</Text>
+            <Text style={styles.priceUnit}> {getPriceLabel(propertyCategory)}</Text>
+          </View>
         </View>
       )}
 
-      {/* Duration Selection */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Charter Duration</Text>
-        <View style={styles.durationGrid}>
-          {durations.map((d) => (
-            <TouchableOpacity
-              key={d.value}
-              style={[
-                styles.durationCard,
-                duration === d.value && styles.durationCardActive
-              ]}
-              activeOpacity={0.7}
-              onPress={() => setDuration(d.value)}
-            >
-              <Text style={[
-                styles.durationLabel,
-                duration === d.value && styles.durationLabelActive
-              ]}>
-                {d.label}
-              </Text>
-              <Text style={[
-                styles.durationDesc,
-                duration === d.value && styles.durationDescActive
-              ]}>
-                {d.description}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Transport: Pickup & Dropoff */}
+      {isTransport && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Transfer Details</Text>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Pickup Location *</Text>
+            <TextInput
+              style={styles.input}
+              value={pickup}
+              onChangeText={setPickup}
+              placeholder="Airport, hotel, address..."
+              placeholderTextColor={BrandColors.gray.medium}
+            />
+          </View>
+          <View style={styles.inputGroup}>
+            <Text style={styles.inputLabel}>Dropoff Location *</Text>
+            <TextInput
+              style={styles.input}
+              value={dropoff}
+              onChangeText={setDropoff}
+              placeholder="Destination address..."
+              placeholderTextColor={BrandColors.gray.medium}
+            />
+          </View>
         </View>
-      </View>
+      )}
+
+      {/* Yacht: Duration Selection (NOT for transport) */}
+      {isYacht && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Charter Duration</Text>
+          <View style={styles.durationGrid}>
+            {durations.map((d) => (
+              <TouchableOpacity
+                key={d.value}
+                style={[
+                  styles.durationCard,
+                  duration === d.value && styles.durationCardActive
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setDuration(d.value)}
+              >
+                <Text style={[
+                  styles.durationLabel,
+                  duration === d.value && styles.durationLabelActive
+                ]}>
+                  {d.label}
+                </Text>
+                <Text style={[
+                  styles.durationDesc,
+                  duration === d.value && styles.durationDescActive
+                ]}>
+                  {d.description}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
 
       {/* Date & Time Row */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Date & Departure Time</Text>
+        <Text style={styles.sectionLabel}>{isTransport ? 'Pickup Date & Time' : 'Charter Date & Time'}</Text>
         <View style={styles.dateTimeRow}>
           {/* Date Picker */}
           <Pressable
@@ -200,9 +265,9 @@ export function CharterBookingForm({
         </View>
       </View>
 
-      {/* Guests */}
+      {/* Guests / Passengers */}
       <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Number of Guests</Text>
+        <Text style={styles.sectionLabel}>{isTransport ? 'Number of Passengers' : 'Number of Guests'}</Text>
         <View style={styles.guestRow}>
           <Pressable
             style={[styles.guestButton, guests <= 1 && styles.guestButtonDisabled]}
@@ -213,7 +278,7 @@ export function CharterBookingForm({
           </Pressable>
           <View style={styles.guestDisplay}>
             <Text style={styles.guestCount}>{guests}</Text>
-            <Text style={styles.guestLabel}>guests</Text>
+            <Text style={styles.guestLabel}>{isTransport ? 'passengers' : 'guests'}</Text>
           </View>
           <Pressable
             style={[styles.guestButton, guests >= maxGuests && styles.guestButtonDisabled]}
@@ -223,38 +288,40 @@ export function CharterBookingForm({
             <Feather name="plus" size={20} color={guests >= maxGuests ? BrandColors.gray.border : BrandColors.gray.dark} />
           </Pressable>
         </View>
-        <Text style={styles.guestMax}>Maximum {maxGuests} guests</Text>
+        <Text style={styles.guestMax}>Maximum {maxGuests} {isTransport ? 'passengers' : 'guests'}</Text>
       </View>
 
-      {/* Occasion (Optional) */}
-      <View style={styles.section}>
-        <Text style={styles.sectionLabel}>Occasion (Optional)</Text>
-        <View style={styles.occasionGrid}>
-          {CHARTER_OCCASIONS.map((occ) => (
-            <TouchableOpacity
-              key={occ.value}
-              style={[
-                styles.occasionChip,
-                occasion === occ.value && styles.occasionChipActive
-              ]}
-              activeOpacity={0.7}
-              onPress={() => setOccasion(occasion === occ.value ? '' : occ.value)}
-            >
-              <Feather
-                name={occ.icon as any}
-                size={14}
-                color={occasion === occ.value ? BrandColors.white : BrandColors.gray.dark}
-              />
-              <Text style={[
-                styles.occasionText,
-                occasion === occ.value && styles.occasionTextActive
-              ]}>
-                {occ.label}
-              </Text>
-            </TouchableOpacity>
-          ))}
+      {/* Occasion (Optional) - YACHT ONLY, NOT for transport */}
+      {isYacht && (
+        <View style={styles.section}>
+          <Text style={styles.sectionLabel}>Occasion (Optional)</Text>
+          <View style={styles.occasionGrid}>
+            {YACHT_OCCASIONS.map((occ) => (
+              <TouchableOpacity
+                key={occ.value}
+                style={[
+                  styles.occasionChip,
+                  occasion === occ.value && styles.occasionChipActive
+                ]}
+                activeOpacity={0.7}
+                onPress={() => setOccasion(occasion === occ.value ? '' : occ.value)}
+              >
+                <Feather
+                  name={occ.icon as any}
+                  size={14}
+                  color={occasion === occ.value ? BrandColors.white : BrandColors.gray.dark}
+                />
+                <Text style={[
+                  styles.occasionText,
+                  occasion === occ.value && styles.occasionTextActive
+                ]}>
+                  {occ.label}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
         </View>
-      </View>
+      )}
 
       {/* Contact Details */}
       <View style={styles.section}>
@@ -312,28 +379,42 @@ export function CharterBookingForm({
       </View>
 
       {/* Summary */}
-      {duration && date && (
+      {date && (isTransport ? (pickup && dropoff) : duration) && (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>Booking Summary</Text>
+          <Text style={styles.summaryTitle}>{isTransport ? 'Transfer Summary' : 'Charter Summary'}</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{propertyName}</Text>
           </View>
+          {isTransport && pickup && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Pickup</Text>
+              <Text style={styles.summaryValue}>{pickup}</Text>
+            </View>
+          )}
+          {isTransport && dropoff && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Dropoff</Text>
+              <Text style={styles.summaryValue}>{dropoff}</Text>
+            </View>
+          )}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Date</Text>
+            <Text style={styles.summaryLabel}>{isTransport ? 'Pickup Date' : 'Charter Date'}</Text>
             <Text style={styles.summaryValue}>{formatDate(date)}</Text>
           </View>
-          <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Duration</Text>
-            <Text style={styles.summaryValue}>{getDurationLabel(duration)}</Text>
-          </View>
+          {isYacht && duration && (
+            <View style={styles.summaryRow}>
+              <Text style={styles.summaryLabel}>Duration</Text>
+              <Text style={styles.summaryValue}>{getDurationLabel(duration)}</Text>
+            </View>
+          )}
           {departureTime && (
             <View style={styles.summaryRow}>
-              <Text style={styles.summaryLabel}>Departure</Text>
+              <Text style={styles.summaryLabel}>{isTransport ? 'Pickup Time' : 'Departure'}</Text>
               <Text style={styles.summaryValue}>{getTimeLabel(departureTime)}</Text>
             </View>
           )}
           <View style={styles.summaryRow}>
-            <Text style={styles.summaryLabel}>Guests</Text>
+            <Text style={styles.summaryLabel}>{isTransport ? 'Passengers' : 'Guests'}</Text>
             <Text style={styles.summaryValue}>{guests}</Text>
           </View>
         </View>
@@ -346,7 +427,7 @@ export function CharterBookingForm({
         disabled={!isValid || isSubmitting}
       >
         <Text style={styles.submitButtonText}>
-          {isSubmitting ? 'Sending...' : 'Request Charter'}
+          {isSubmitting ? 'Sending...' : (isTransport ? 'Request Transfer' : 'Request Charter')}
         </Text>
       </Pressable>
 
@@ -421,6 +502,9 @@ export function CharterBookingForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
+    paddingHorizontal: Space[6], // Match Villa modal padding
+    paddingTop: Space[4],
+    paddingBottom: Space[8], // Extra bottom padding for safe area
   },
   priceHeader: {
     marginBottom: Space[6],
@@ -428,17 +512,22 @@ const styles = StyleSheet.create({
     borderBottomWidth: 1,
     borderBottomColor: BrandColors.gray.border,
   },
+  priceRow: {
+    flexDirection: 'row',
+    alignItems: 'baseline',
+    flexWrap: 'wrap',
+  },
   priceText: {
     fontSize: FontSize['2xl'],
     lineHeight: LineHeight['2xl'],
     fontWeight: FontWeight.bold,
     color: BrandColors.black,
   },
-  priceNote: {
-    fontSize: FontSize.sm,
-    lineHeight: LineHeight.sm,
-    color: BrandColors.gray.medium,
-    marginTop: Space[1],
+  priceUnit: {
+    fontSize: FontSize.base,
+    lineHeight: LineHeight.base,
+    fontWeight: FontWeight.normal,
+    color: BrandColors.gray.dark,
   },
   section: {
     marginBottom: Space[6],
