@@ -46,20 +46,43 @@ const TRANSPORT_DURATIONS = [
   { value: 'transfer', label: 'One-way', description: 'Airport/point-to-point' },
 ];
 
-// Departure time options
-const DEPARTURE_TIMES = [
-  { value: '08:00', label: '8:00 AM', period: 'Morning' },
-  { value: '09:00', label: '9:00 AM', period: 'Morning' },
-  { value: '10:00', label: '10:00 AM', period: 'Morning' },
-  { value: '11:00', label: '11:00 AM', period: 'Morning' },
-  { value: '12:00', label: '12:00 PM', period: 'Afternoon' },
-  { value: '13:00', label: '1:00 PM', period: 'Afternoon' },
-  { value: '14:00', label: '2:00 PM', period: 'Afternoon' },
-  { value: '15:00', label: '3:00 PM', period: 'Afternoon' },
-  { value: '16:00', label: '4:00 PM', period: 'Sunset' },
-  { value: '17:00', label: '5:00 PM', period: 'Sunset' },
-  { value: '18:00', label: '6:00 PM', period: 'Evening' },
+// Departure time options grouped by period
+const TIME_PERIODS = [
+  {
+    period: 'Morning',
+    times: [
+      { value: '08:00', label: '8:00 AM' },
+      { value: '09:00', label: '9:00 AM' },
+      { value: '10:00', label: '10:00 AM' },
+      { value: '11:00', label: '11:00 AM' },
+    ],
+  },
+  {
+    period: 'Afternoon',
+    times: [
+      { value: '12:00', label: '12:00 PM' },
+      { value: '13:00', label: '1:00 PM' },
+      { value: '14:00', label: '2:00 PM' },
+      { value: '15:00', label: '3:00 PM' },
+    ],
+  },
+  {
+    period: 'Sunset',
+    times: [
+      { value: '16:00', label: '4:00 PM' },
+      { value: '17:00', label: '5:00 PM' },
+    ],
+  },
+  {
+    period: 'Evening',
+    times: [
+      { value: '18:00', label: '6:00 PM' },
+    ],
+  },
 ];
+
+// Flat list for getTimeLabel lookup
+const ALL_TIMES = TIME_PERIODS.flatMap(p => p.times);
 
 // Yacht occasions (NOT for transport)
 const YACHT_OCCASIONS = [
@@ -158,7 +181,7 @@ export function CharterBookingForm({
   };
 
   const getTimeLabel = (value: string) => {
-    return DEPARTURE_TIMES.find(t => t.value === value)?.label || 'Select time';
+    return ALL_TIMES.find(t => t.value === value)?.label || 'Select time';
   };
 
   const getDurationLabel = (value: string) => {
@@ -381,7 +404,7 @@ export function CharterBookingForm({
       {/* Summary */}
       {date && (isTransport ? (pickup && dropoff) : duration) && (
         <View style={styles.summary}>
-          <Text style={styles.summaryTitle}>{isTransport ? 'Transfer Summary' : 'Charter Summary'}</Text>
+          <Text style={styles.summaryTitle}>Booking Summary</Text>
           <View style={styles.summaryRow}>
             <Text style={styles.summaryLabel}>{propertyName}</Text>
           </View>
@@ -462,37 +485,38 @@ export function CharterBookingForm({
         onClose={() => setShowTimePicker(false)}
         title="Departure Time"
       >
-        <View style={styles.timeGrid}>
-          {DEPARTURE_TIMES.map((time, index) => {
-            const prevPeriod = index > 0 ? DEPARTURE_TIMES[index - 1].period : null;
-            const showPeriodLabel = time.period !== prevPeriod;
+        <View style={styles.timePickerContainer}>
+          {TIME_PERIODS.map((periodGroup) => (
+            <View key={periodGroup.period} style={styles.timePeriodSection}>
+              {/* Full-width section label */}
+              <Text style={styles.timePeriodLabel}>{periodGroup.period}</Text>
 
-            return (
-              <View key={time.value} style={styles.timeItem}>
-                {showPeriodLabel && (
-                  <Text style={styles.timePeriodLabel}>{time.period}</Text>
-                )}
-                <TouchableOpacity
-                  style={[
-                    styles.timeChip,
-                    departureTime === time.value && styles.timeChipActive
-                  ]}
-                  activeOpacity={0.7}
-                  onPress={() => {
-                    setDepartureTime(time.value);
-                    setShowTimePicker(false);
-                  }}
-                >
-                  <Text style={[
-                    styles.timeChipText,
-                    departureTime === time.value && styles.timeChipTextActive
-                  ]}>
-                    {time.label}
-                  </Text>
-                </TouchableOpacity>
+              {/* Grid of time buttons */}
+              <View style={styles.timeButtonGrid}>
+                {periodGroup.times.map((time) => (
+                  <TouchableOpacity
+                    key={time.value}
+                    style={[
+                      styles.timeButton,
+                      departureTime === time.value && styles.timeButtonActive
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      setDepartureTime(time.value);
+                      setShowTimePicker(false);
+                    }}
+                  >
+                    <Text style={[
+                      styles.timeButtonText,
+                      departureTime === time.value && styles.timeButtonTextActive
+                    ]}>
+                      {time.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
               </View>
-            );
-          })}
+            </View>
+          ))}
         </View>
       </BottomSheet>
     </ScrollView>
@@ -502,9 +526,9 @@ export function CharterBookingForm({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    paddingHorizontal: Space[6], // Match Villa modal padding
-    paddingTop: Space[4],
-    paddingBottom: Space[8], // Extra bottom padding for safe area
+    paddingHorizontal: Space[6],
+    paddingTop: Space[6],
+    paddingBottom: Space[10], // Extra bottom padding for safe area
   },
   priceHeader: {
     marginBottom: Space[6],
@@ -546,12 +570,12 @@ const styles = StyleSheet.create({
   durationGrid: {
     flexDirection: 'row',
     flexWrap: 'wrap',
-    gap: Space[2],
+    gap: Space[3],
   },
   durationCard: {
-    width: '48%',
+    width: Platform.select({ web: 'calc(50% - 6px)', default: '47%' }) as any,
     paddingVertical: Space[4],
-    paddingHorizontal: Space[4],
+    paddingHorizontal: Space[3],
     borderRadius: Radius.lg,
     borderWidth: 1,
     borderColor: BrandColors.gray.border,
@@ -777,14 +801,12 @@ const styles = StyleSheet.create({
     marginBottom: Space[8],
   },
 
-  // Time Picker
-  timeGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Space[2],
+  // Time Picker - Grouped sections with responsive grid
+  timePickerContainer: {
+    gap: Space[5],
   },
-  timeItem: {
-    width: '30%',
+  timePeriodSection: {
+    width: '100%',
   },
   timePeriodLabel: {
     fontSize: FontSize.xs,
@@ -792,29 +814,37 @@ const styles = StyleSheet.create({
     fontWeight: FontWeight.semibold,
     color: BrandColors.gray.medium,
     textTransform: 'uppercase',
-    marginBottom: Space[2],
-    marginTop: Space[3],
+    letterSpacing: 0.5,
+    marginBottom: Space[3],
+    width: '100%',
   },
-  timeChip: {
-    paddingVertical: Space[3],
-    paddingHorizontal: Space[4],
+  timeButtonGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Space[2],
+  },
+  timeButton: {
+    // Fixed width: 4 columns with gap accounting
+    width: Platform.select({ web: 'calc(25% - 6px)', default: '23%' }) as any,
+    height: TouchTarget.min,
     borderRadius: Radius.lg,
     backgroundColor: BrandColors.gray.light,
     borderWidth: 1,
     borderColor: BrandColors.gray.border,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  timeChipActive: {
+  timeButtonActive: {
     backgroundColor: BrandColors.black,
     borderColor: BrandColors.black,
   },
-  timeChipText: {
+  timeButtonText: {
     fontSize: FontSize.sm,
     lineHeight: LineHeight.sm,
     fontWeight: FontWeight.medium,
     color: BrandColors.gray.dark,
   },
-  timeChipTextActive: {
+  timeButtonTextActive: {
     color: BrandColors.white,
   },
 });

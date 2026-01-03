@@ -76,22 +76,14 @@ export function BookingCard({ price, minStay, category = 'villa', onInquire, blo
       {/* Footer */}
       <Text style={styles.footer}>You won't be charged yet</Text>
 
-      {/* Availability Status */}
-      {isLoadingAvailability && (
+      {/* Availability Status - Only show for villas */}
+      {category === 'villa' && isLoadingAvailability && (
         <View style={styles.availabilitySection}>
           <Feather name="loader" size={14} color={BrandColors.gray.medium} />
           <Text style={styles.availabilityLoading}>Checking availability...</Text>
         </View>
       )}
-      {!isLoadingAvailability && blockedRanges && blockedRanges.length > 0 && (
-        <View style={styles.availabilitySection}>
-          <Feather name="calendar" size={14} color={BrandColors.gray.dark} />
-          <Text style={styles.availabilityText}>
-            {blockedRanges.length} period{blockedRanges.length > 1 ? 's' : ''} booked
-          </Text>
-        </View>
-      )}
-      {!isLoadingAvailability && blockedRanges && blockedRanges.length === 0 && (
+      {category === 'villa' && !isLoadingAvailability && blockedRanges && blockedRanges.length === 0 && (
         <View style={styles.availabilitySection}>
           <Feather name="check-circle" size={14} color="#16a34a" />
           <Text style={styles.availabilityAvailable}>Calendar open</Text>

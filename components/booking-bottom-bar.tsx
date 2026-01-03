@@ -51,7 +51,8 @@ export function BookingBottomBar({ price, category = 'villa', onInquire, hasAvai
           {category === 'transport' && (
             <Text style={styles.availabilityText}>Route-based pricing</Text>
           )}
-          {!isLoadingAvailability && hasAvailability !== undefined && (
+          {/* Only show availability indicator for villas */}
+          {category === 'villa' && !isLoadingAvailability && hasAvailability !== undefined && (
             <View style={styles.availabilityIndicator}>
               <Feather
                 name={hasAvailability ? "check-circle" : "calendar"}

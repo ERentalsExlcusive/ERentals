@@ -102,7 +102,7 @@ export function PropertyGallery({ images }: PropertyGalleryProps) {
               style={[styles.imageContainer, { width }]}
             >
               <Image
-                source={{ uri: image.sizes.large || image.url }}
+                source={{ uri: image.sizes.full || image.url }}
                 style={styles.image}
                 resizeMode="cover"
                 onError={() => handleImageError(image.id)}

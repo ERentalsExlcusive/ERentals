@@ -181,11 +181,16 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
     return date >= startDate && date <= endDate;
   };
 
-  const isDateSelected = (date: Date): 'start' | 'end' | 'middle' | null => {
+  const isDateSelected = (date: Date): 'start' | 'end' | 'middle' | 'single' | null => {
     if (!startDate) return null;
 
     const dateTime = date.getTime();
     const startTime = startDate.getTime();
+
+    // Check for single day selection (start === end)
+    if (endDate && startTime === endDate.getTime() && dateTime === startTime) {
+      return 'single';
+    }
 
     if (dateTime === startTime) return 'start';
 
@@ -259,6 +264,7 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
                 styles.dayCell,
                 isMobile && styles.dayCellMobile,
                 !dayCell.isCurrentMonth && styles.dayCellOtherMonth,
+                selected === 'single' && styles.dayCellSingle,
                 selected === 'start' && styles.dayCellStart,
                 selected === 'end' && styles.dayCellEnd,
                 selected === 'middle' && styles.dayCellMiddle,
@@ -274,7 +280,7 @@ export function DatePicker({ startDate, endDate, onDatesChange, minDate, minNigh
                     styles.dayText,
                     isMobile && styles.dayTextMobile,
                     !dayCell.isCurrentMonth && styles.dayTextOtherMonth,
-                    (selected === 'start' || selected === 'end') && styles.dayTextSelected,
+                    (selected === 'start' || selected === 'end' || selected === 'single') && styles.dayTextSelected,
                     dayCell.isToday && !selected && styles.dayTextToday,
                     dayCell.isDisabled && styles.dayTextDisabled,
                     dayCell.isBlocked && styles.dayTextBlocked,
@@ -414,6 +420,10 @@ const styles = StyleSheet.create({
   },
   dayCellPressed: {
     backgroundColor: BrandColors.gray.light,
+    borderRadius: Radius.full,
+  },
+  dayCellSingle: {
+    backgroundColor: BrandColors.black,
     borderRadius: Radius.full,
   },
   dayCellStart: {

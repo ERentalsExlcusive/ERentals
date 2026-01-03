@@ -205,22 +205,53 @@ export default function PropertyDetailScreen() {
           try {
             const images = await getRentalGallery(found.id);
 
-            // Ensure featured image is first in gallery
-            if (found.featuredImage && images.length > 0) {
-              const featuredId = found.featuredImage.url;
-              const featuredIndex = images.findIndex(img => img.url === featuredId);
+            // If gallery has images, ensure featured is first
+            if (images.length > 0) {
+              if (found.featuredImage) {
+                const featuredUrl = found.featuredImage.url;
+                const featuredIndex = images.findIndex(img => img.url === featuredUrl);
 
-              if (featuredIndex > 0) {
-                // Move featured image to first position
-                const featuredImg = images[featuredIndex];
-                images.splice(featuredIndex, 1);
-                images.unshift(featuredImg);
+                if (featuredIndex > 0) {
+                  // Move featured image to first position
+                  const featuredImg = images[featuredIndex];
+                  images.splice(featuredIndex, 1);
+                  images.unshift(featuredImg);
+                }
               }
+              setGallery(images);
+            } else if (found.featuredImage) {
+              // Fallback: use featured image when gallery is empty
+              setGallery([{
+                id: found.id,
+                url: found.featuredImage.url,
+                alt: found.featuredImage.alt || found.title,
+                width: found.featuredImage.width || 1920,
+                height: found.featuredImage.height || 1280,
+                sizes: {
+                  thumbnail: found.featuredImage.sizes?.thumbnail,
+                  medium: found.featuredImage.sizes?.medium,
+                  large: found.featuredImage.sizes?.large,
+                  full: found.featuredImage.url,
+                },
+              }]);
             }
-
-            setGallery(images);
           } catch (galleryError) {
-            // Continue even if gallery fails - PropertyGallery handles empty/failed images
+            // Fallback to featured image on error
+            if (found.featuredImage) {
+              setGallery([{
+                id: found.id,
+                url: found.featuredImage.url,
+                alt: found.featuredImage.alt || found.title,
+                width: found.featuredImage.width || 1920,
+                height: found.featuredImage.height || 1280,
+                sizes: {
+                  thumbnail: found.featuredImage.sizes?.thumbnail,
+                  medium: found.featuredImage.sizes?.medium,
+                  large: found.featuredImage.sizes?.large,
+                  full: found.featuredImage.url,
+                },
+              }]);
+            }
           }
         }
       } catch (err) {
@@ -927,9 +958,9 @@ const styles = StyleSheet.create({
   charterModalContent: {
     backgroundColor: BrandColors.white,
     borderRadius: Radius.xl,
-    width: Platform.select({ web: 'min(92vw, 520px)', default: '100%' }) as any,
-    maxWidth: 520,
-    maxHeight: Platform.select({ web: 'calc(100dvh - 32px)', default: '90%' }) as any,
+    width: Platform.select({ web: 'min(92vw, 480px)', default: '100%' }) as any,
+    maxWidth: 480,
+    maxHeight: Platform.select({ web: 'min(90vh, 720px)', default: '90%' }) as any,
     overflow: 'hidden',
     ...Shadow.xl,
   },

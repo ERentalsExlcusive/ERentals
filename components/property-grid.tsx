@@ -1,7 +1,7 @@
 import { StyleSheet, View, FlatList, Platform } from 'react-native';
 import { PropertyCard } from './property-card';
 import { Rental } from '@/types/rental';
-import { Spacing } from '@/constants/theme';
+import { Space } from '@/constants/design-tokens';
 import { useResponsive } from '@/hooks/use-responsive';
 
 interface PropertyGridProps {
@@ -53,11 +53,11 @@ export function PropertyGrid({
 
 const styles = StyleSheet.create({
   gridContent: {
-    paddingHorizontal: Spacing.lg,
-    paddingBottom: Spacing.xxl,
+    paddingHorizontal: Space[4],
+    paddingBottom: Space[12],
   },
   cardWrapper: {
-    padding: Spacing.sm,
+    padding: Space[2],
   },
   cardInner: {
     flex: 1,

@@ -231,8 +231,8 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Space[3],
     right: Space[3],
-    width: Space[8],
-    height: Space[8],
+    width: 44, // Minimum touch target
+    height: 44,
     borderRadius: Radius.full,
     backgroundColor: 'rgba(255, 255, 255, 0.9)',
     alignItems: 'center',

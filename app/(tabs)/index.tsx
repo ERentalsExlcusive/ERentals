@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, ActivityIndicator } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, ActivityIndicator, Platform } from 'react-native';
 import { useState, useRef, useMemo, useEffect, useCallback } from 'react';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Header } from '@/components/header';
@@ -220,7 +220,7 @@ export default function HomeScreen() {
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Explore Our Collection</Text>
             <Text style={styles.sectionSubtitle}>
-              {total} {total === 1 ? 'listing' : 'listings'}
+              {filteredRentals.length} {filteredRentals.length === 1 ? 'listing' : 'listings'}
             </Text>
           </View>
 
@@ -299,19 +299,19 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   section: {
-    paddingTop: Space[20],
+    paddingTop: Platform.select({ web: Space[20], default: Space[12] }),
     paddingBottom: Space[12],
     backgroundColor: BrandColors.white,
   },
   sectionHeader: {
-    paddingHorizontal: Space[12],
+    paddingHorizontal: Platform.select({ web: Space[12], default: Space[4] }),
     marginBottom: Space[6],
     alignItems: 'center',
     textAlign: 'center',
   },
   sectionTitle: {
-    fontSize: FontSize['4xl'],
-    lineHeight: LineHeight['4xl'],
+    fontSize: Platform.select({ web: FontSize['4xl'], default: FontSize['2xl'] }),
+    lineHeight: Platform.select({ web: LineHeight['4xl'], default: LineHeight['2xl'] }),
     fontWeight: FontWeight.bold,
     color: BrandColors.black,
     marginBottom: Space[2],
@@ -332,7 +332,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   skeletonGrid: {
-    paddingHorizontal: Space[12],
+    paddingHorizontal: Platform.select({ web: Space[12], default: Space[4] }),
     paddingTop: Space[4],
     maxWidth: 1400,
     marginHorizontal: 'auto',
