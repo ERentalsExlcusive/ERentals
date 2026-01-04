@@ -15,10 +15,10 @@ interface AuthModalProps {
   onClose: () => void;
 }
 
-type AuthMode = 'login' | 'signup' | 'magic-link' | 'magic-link-sent';
+type AuthMode = 'login' | 'signup' | 'magic-link' | 'magic-link-sent' | 'forgot-password' | 'reset-sent';
 
 export function AuthModal({ visible, onClose }: AuthModalProps) {
-  const { signIn, signUp, signInWithMagicLink } = useAuth();
+  const { signIn, signUp, signInWithMagicLink, resetPassword } = useAuth();
   const [mode, setMode] = useState<AuthMode>('login');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -65,6 +65,11 @@ export function AuthModal({ visible, onClose }: AuthModalProps) {
       return;
     }
 
+    if (password.length < 6) {
+      setError('Password must be at least 6 characters');
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
@@ -99,6 +104,26 @@ export function AuthModal({ visible, onClose }: AuthModalProps) {
     }
   };
 
+  const handleForgotPassword = async () => {
+    if (!email) {
+      setError('Please enter your email');
+      return;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    const result = await resetPassword(email);
+
+    setIsLoading(false);
+
+    if (result.success) {
+      setMode('reset-sent');
+    } else {
+      setError(result.error || 'Failed to send reset email');
+    }
+  };
+
   const renderContent = () => {
     if (mode === 'magic-link-sent') {
       return (
@@ -117,16 +142,35 @@ export function AuthModal({ visible, onClose }: AuthModalProps) {
       );
     }
 
+    if (mode === 'reset-sent') {
+      return (
+        <View style={styles.successContainer}>
+          <View style={styles.successIcon}>
+            <Feather name="mail" size={32} color={BrandColors.secondary} />
+          </View>
+          <Text style={styles.successTitle}>Check your email</Text>
+          <Text style={styles.successText}>
+            We've sent a password reset link to {email}. Click the link to set a new password.
+          </Text>
+          <Pressable style={styles.primaryButton} onPress={handleClose}>
+            <Text style={styles.primaryButtonText}>Done</Text>
+          </Pressable>
+        </View>
+      );
+    }
+
     return (
       <>
         <Text style={styles.title}>
-          {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Create Account' : 'Sign in with Email'}
+          {mode === 'login' ? 'Welcome Back' : mode === 'signup' ? 'Create Account' : mode === 'forgot-password' ? 'Reset Password' : 'Sign in with Email'}
         </Text>
         <Text style={styles.subtitle}>
           {mode === 'login'
             ? 'Sign in to sync your saved listings'
             : mode === 'signup'
             ? 'Create an account to save and sync your favorites'
+            : mode === 'forgot-password'
+            ? 'Enter your email and we\'ll send you a reset link'
             : 'We\'ll send you a magic link to sign in'}
         </Text>
 
@@ -165,7 +209,7 @@ export function AuthModal({ visible, onClose }: AuthModalProps) {
           />
         </View>
 
-        {mode !== 'magic-link' && (
+        {mode !== 'magic-link' && mode !== 'forgot-password' && (
           <View style={styles.inputContainer}>
             <Text style={styles.label}>Password</Text>
             <TextInput
@@ -177,47 +221,63 @@ export function AuthModal({ visible, onClose }: AuthModalProps) {
               secureTextEntry
               autoComplete={mode === 'login' ? 'current-password' : 'new-password'}
             />
+            {mode === 'login' && (
+              <Pressable style={styles.forgotPasswordLink} onPress={() => { setError(null); setPassword(''); setMode('forgot-password'); }}>
+                <Text style={styles.forgotPasswordText}>Forgot password?</Text>
+              </Pressable>
+            )}
           </View>
         )}
 
         <Pressable
           style={[styles.primaryButton, isLoading && styles.buttonDisabled]}
-          onPress={mode === 'login' ? handleLogin : mode === 'signup' ? handleSignup : handleMagicLink}
+          onPress={mode === 'login' ? handleLogin : mode === 'signup' ? handleSignup : mode === 'forgot-password' ? handleForgotPassword : handleMagicLink}
           disabled={isLoading}
         >
           {isLoading ? (
             <ActivityIndicator color={BrandColors.white} />
           ) : (
             <Text style={styles.primaryButtonText}>
-              {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : 'Send Magic Link'}
+              {mode === 'login' ? 'Sign In' : mode === 'signup' ? 'Create Account' : mode === 'forgot-password' ? 'Send Reset Link' : 'Send Magic Link'}
             </Text>
           )}
         </Pressable>
 
         {mode === 'login' && (
-          <Pressable style={styles.magicLinkButton} onPress={() => setMode('magic-link')}>
+          <Pressable style={styles.magicLinkButton} onPress={() => { setError(null); setPassword(''); setMode('magic-link'); }}>
             <Feather name="zap" size={16} color={BrandColors.secondary} />
             <Text style={styles.magicLinkText}>Sign in with magic link</Text>
           </Pressable>
         )}
 
-        <View style={styles.divider}>
-          <View style={styles.dividerLine} />
-          <Text style={styles.dividerText}>or</Text>
-          <View style={styles.dividerLine} />
-        </View>
+        {(mode === 'forgot-password' || mode === 'magic-link') && (
+          <Pressable style={styles.backToLoginButton} onPress={() => { setError(null); setPassword(''); setMode('login'); }}>
+            <Feather name="arrow-left" size={16} color={BrandColors.gray.dark} />
+            <Text style={styles.backToLoginText}>Back to sign in</Text>
+          </Pressable>
+        )}
 
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={() => {
-            setError(null);
-            setMode(mode === 'login' ? 'signup' : 'login');
-          }}
-        >
-          <Text style={styles.secondaryButtonText}>
-            {mode === 'login' ? 'Create an account' : 'Already have an account? Sign in'}
-          </Text>
-        </Pressable>
+        {(mode === 'login' || mode === 'signup') && (
+          <>
+            <View style={styles.divider}>
+              <View style={styles.dividerLine} />
+              <Text style={styles.dividerText}>or</Text>
+              <View style={styles.dividerLine} />
+            </View>
+
+            <Pressable
+              style={styles.secondaryButton}
+              onPress={() => {
+                setError(null);
+                setMode(mode === 'login' ? 'signup' : 'login');
+              }}
+            >
+              <Text style={styles.secondaryButtonText}>
+                {mode === 'login' ? 'Create an account' : 'Already have an account? Sign in'}
+              </Text>
+            </Pressable>
+          </>
+        )}
       </>
     );
   };
@@ -350,6 +410,29 @@ const styles = StyleSheet.create({
     lineHeight: LineHeight.sm,
     fontWeight: FontWeight.medium,
     color: BrandColors.secondary,
+  },
+  forgotPasswordLink: {
+    marginTop: Space[2],
+    alignSelf: 'flex-end',
+  },
+  forgotPasswordText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    color: BrandColors.secondary,
+  },
+  backToLoginButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Space[2],
+    paddingVertical: Space[4],
+    marginTop: Space[2],
+  },
+  backToLoginText: {
+    fontSize: FontSize.sm,
+    lineHeight: LineHeight.sm,
+    fontWeight: FontWeight.medium,
+    color: BrandColors.gray.dark,
   },
   divider: {
     flexDirection: 'row',

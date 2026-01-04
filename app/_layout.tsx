@@ -111,6 +111,7 @@ export default function RootLayout() {
               <Stack.Screen name="about" options={{ headerShown: false }} />
               <Stack.Screen name="owner-portal" options={{ headerShown: false }} />
               <Stack.Screen name="favorites" options={{ headerShown: false }} />
+              <Stack.Screen name="reset-password" options={{ headerShown: false }} />
               <Stack.Screen name="modal" options={{ presentation: 'modal', title: 'Modal' }} />
             </Stack>
             <StatusBar style="light" translucent backgroundColor="transparent" />

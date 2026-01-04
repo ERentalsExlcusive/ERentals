@@ -59,7 +59,7 @@ export default function OwnerLoginScreen() {
         <View style={styles.demoNotice}>
           <Feather name="info" size={16} color={BrandColors.secondary} />
           <Text style={styles.demoText}>
-            Demo: owner@erentals.com / demo123
+            Demo: owner@erentals.com / OwnerPass123
           </Text>
         </View>
 

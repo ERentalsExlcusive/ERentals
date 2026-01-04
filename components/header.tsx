@@ -104,18 +104,25 @@ export function Header({ onCategorySelect, onHomePress }: HeaderProps = {}) {
 
             {/* User Dropdown Menu */}
             {showUserMenu && isAuthenticated && (
-              <View style={styles.userMenu}>
-                <Text style={styles.userMenuEmail}>{user?.email}</Text>
-                <View style={styles.userMenuDivider} />
-                <Pressable style={styles.userMenuItem} onPress={() => { router.push('/favorites'); setShowUserMenu(false); }}>
-                  <Feather name="heart" size={16} color={BrandColors.gray.dark} />
-                  <Text style={styles.userMenuItemText}>Saved Listings</Text>
-                </Pressable>
-                <Pressable style={styles.userMenuItem} onPress={() => { signOut(); setShowUserMenu(false); }}>
-                  <Feather name="log-out" size={16} color={BrandColors.gray.dark} />
-                  <Text style={styles.userMenuItemText}>Sign Out</Text>
-                </Pressable>
-              </View>
+              <>
+                {/* Invisible backdrop to close menu when clicking outside */}
+                <Pressable
+                  style={styles.menuBackdrop}
+                  onPress={() => setShowUserMenu(false)}
+                />
+                <View style={styles.userMenu}>
+                  <Text style={styles.userMenuEmail}>{user?.email}</Text>
+                  <View style={styles.userMenuDivider} />
+                  <Pressable style={styles.userMenuItem} onPress={() => { router.push('/favorites'); setShowUserMenu(false); }}>
+                    <Feather name="heart" size={16} color={BrandColors.gray.dark} />
+                    <Text style={styles.userMenuItemText}>Saved Listings</Text>
+                  </Pressable>
+                  <Pressable style={styles.userMenuItem} onPress={() => { signOut(); setShowUserMenu(false); }}>
+                    <Feather name="log-out" size={16} color={BrandColors.gray.dark} />
+                    <Text style={styles.userMenuItemText}>Sign Out</Text>
+                  </Pressable>
+                </View>
+              </>
             )}
           </View>
 
@@ -266,6 +273,14 @@ const styles = StyleSheet.create({
     fontSize: FontSize.sm,
     fontWeight: FontWeight.semibold,
     color: BrandColors.white,
+  },
+  menuBackdrop: {
+    position: 'fixed' as any,
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    zIndex: ZIndex.dropdown - 1,
   },
   userMenu: {
     position: 'absolute',
