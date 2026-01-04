@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -6,7 +6,8 @@ import { BrandColors } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/constants/design-tokens';
 import { useOwnerAuth } from '@/context/owner-auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { MOCK_INQUIRIES, INQUIRY_STAGES, OwnerInquiry } from '@/data/mock-owner-data';
+import { useOwnerData } from '@/hooks/use-owner-data';
+import { INQUIRY_STAGES, OwnerInquiry } from '@/data/mock-owner-data';
 
 type StageFilter = 'all' | OwnerInquiry['stage'];
 
@@ -14,6 +15,7 @@ export default function OwnerInquiriesScreen() {
   const router = useRouter();
   const { isMobile } = useResponsive();
   const { isAuthenticated } = useOwnerAuth();
+  const { inquiries, isLoading } = useOwnerData();
   const [activeFilter, setActiveFilter] = useState<StageFilter>('all');
 
   // Redirect if not authenticated
@@ -24,8 +26,8 @@ export default function OwnerInquiriesScreen() {
   }, [isAuthenticated, router]);
 
   const filteredInquiries = activeFilter === 'all'
-    ? MOCK_INQUIRIES
-    : MOCK_INQUIRIES.filter(i => i.stage === activeFilter);
+    ? inquiries
+    : inquiries.filter(i => i.stage === activeFilter);
 
   if (!isAuthenticated) {
     return null;
@@ -54,11 +56,11 @@ export default function OwnerInquiriesScreen() {
           onPress={() => setActiveFilter('all')}
         >
           <Text style={[styles.filterText, activeFilter === 'all' && styles.filterTextActive]}>
-            All ({MOCK_INQUIRIES.length})
+            All ({inquiries.length})
           </Text>
         </Pressable>
         {Object.entries(INQUIRY_STAGES).map(([key, config]) => {
-          const count = MOCK_INQUIRIES.filter(i => i.stage === key).length;
+          const count = inquiries.filter(i => i.stage === key).length;
           return (
             <Pressable
               key={key}

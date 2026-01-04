@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, Pressable, Image, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, Image, Platform, ActivityIndicator } from 'react-native';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -6,12 +6,14 @@ import { BrandColors } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/constants/design-tokens';
 import { useOwnerAuth } from '@/context/owner-auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { MOCK_ASSETS, OwnerAsset } from '@/data/mock-owner-data';
+import { useOwnerData } from '@/hooks/use-owner-data';
+import { OwnerAsset } from '@/data/mock-owner-data';
 
 export default function OwnerAssetsScreen() {
   const router = useRouter();
   const { isMobile } = useResponsive();
   const { isAuthenticated } = useOwnerAuth();
+  const { assets, isLoading } = useOwnerData();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -37,12 +39,22 @@ export default function OwnerAssetsScreen() {
 
       <ScrollView style={styles.scrollView} showsVerticalScrollIndicator={false}>
         <View style={[styles.content, isMobile && styles.contentMobile]}>
-          {/* Assets Grid */}
-          <View style={[styles.assetsGrid, isMobile && styles.assetsGridMobile]}>
-            {MOCK_ASSETS.map((asset) => (
-              <AssetCard key={asset.id} asset={asset} isMobile={isMobile} />
-            ))}
-          </View>
+          {isLoading ? (
+            <View style={styles.loadingContainer}>
+              <ActivityIndicator size="large" color={BrandColors.secondary} />
+            </View>
+          ) : assets.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Feather name="home" size={48} color={BrandColors.gray.medium} />
+              <Text style={styles.emptyText}>No assets yet</Text>
+            </View>
+          ) : (
+            <View style={[styles.assetsGrid, isMobile && styles.assetsGridMobile]}>
+              {assets.map((asset) => (
+                <AssetCard key={asset.id} asset={asset} isMobile={isMobile} />
+              ))}
+            </View>
+          )}
         </View>
       </ScrollView>
     </View>
@@ -159,6 +171,21 @@ const styles = StyleSheet.create({
   },
   contentMobile: {
     padding: Space[4],
+  },
+  loadingContainer: {
+    padding: Space[12],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyContainer: {
+    padding: Space[12],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  emptyText: {
+    marginTop: Space[4],
+    fontSize: FontSize.md,
+    color: BrandColors.gray.medium,
   },
   assetsGrid: {
     flexDirection: 'row',

@@ -1,4 +1,4 @@
-import { StyleSheet, View, Text, ScrollView, Pressable, Platform } from 'react-native';
+import { StyleSheet, View, Text, ScrollView, Pressable, Platform, ActivityIndicator } from 'react-native';
 import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { Feather } from '@expo/vector-icons';
@@ -6,12 +6,14 @@ import { BrandColors } from '@/constants/theme';
 import { Space, FontSize, LineHeight, FontWeight, Radius, Shadow } from '@/constants/design-tokens';
 import { useOwnerAuth } from '@/context/owner-auth-context';
 import { useResponsive } from '@/hooks/use-responsive';
-import { MOCK_STATS, getRecentInquiries, INQUIRY_STAGES, OwnerInquiry } from '@/data/mock-owner-data';
+import { useOwnerData, getRecentInquiries } from '@/hooks/use-owner-data';
+import { INQUIRY_STAGES, OwnerInquiry } from '@/data/mock-owner-data';
 
 export default function OwnerDashboardScreen() {
   const router = useRouter();
   const { isMobile } = useResponsive();
   const { user, isAuthenticated, logout } = useOwnerAuth();
+  const { stats, inquiries, isLoading: dataLoading } = useOwnerData();
 
   // Redirect if not authenticated
   useEffect(() => {
@@ -20,7 +22,7 @@ export default function OwnerDashboardScreen() {
     }
   }, [isAuthenticated, router]);
 
-  const recentInquiries = getRecentInquiries(5);
+  const recentInquiries = getRecentInquiries(inquiries, 5);
 
   const handleLogout = () => {
     logout();
@@ -61,23 +63,23 @@ export default function OwnerDashboardScreen() {
           <View style={[styles.statsGrid, isMobile && styles.statsGridMobile]}>
             <View style={[styles.statCard, styles.statCardPrimary]}>
               <Feather name="home" size={24} color={BrandColors.white} />
-              <Text style={styles.statNumber}>{MOCK_STATS.totalAssets}</Text>
+              <Text style={styles.statNumber}>{dataLoading ? '-' : stats.totalAssets}</Text>
               <Text style={styles.statLabel}>Total Assets</Text>
             </View>
             <View style={styles.statCard}>
               <Feather name="message-square" size={24} color={BrandColors.secondary} />
-              <Text style={styles.statNumberDark}>{MOCK_STATS.totalInquiries}</Text>
+              <Text style={styles.statNumberDark}>{dataLoading ? '-' : stats.totalInquiries}</Text>
               <Text style={styles.statLabelDark}>Inquiries</Text>
             </View>
             <View style={styles.statCard}>
               <Feather name="calendar" size={24} color={BrandColors.secondary} />
-              <Text style={styles.statNumberDark}>{MOCK_STATS.totalBookings}</Text>
+              <Text style={styles.statNumberDark}>{dataLoading ? '-' : stats.confirmedBookings}</Text>
               <Text style={styles.statLabelDark}>Bookings</Text>
             </View>
             <View style={styles.statCard}>
-              <Feather name="dollar-sign" size={24} color={BrandColors.secondary} />
-              <Text style={styles.statNumberDark}>{MOCK_STATS.revenue}</Text>
-              <Text style={styles.statLabelDark}>Revenue</Text>
+              <Feather name="bell" size={24} color={BrandColors.secondary} />
+              <Text style={styles.statNumberDark}>{dataLoading ? '-' : stats.newInquiries}</Text>
+              <Text style={styles.statLabelDark}>New</Text>
             </View>
           </View>
 
